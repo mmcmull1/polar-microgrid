@@ -339,9 +339,13 @@ def calculate_costs(cfg, dispatch):
     r = c["discount_rate"]
     npv_f = sum(1/(1+r)**y for y in range(1, life+1))
     repl = sum(
-        d_cx/(1+r)**y for y in range(1,life+1) if y % c["diesel_lifetime_years"] == 0 and y < life
+        pv_cx/(1+r)**y for y in range(1,life+1) if y % c["pv_lifetime_years"] == 0 and y < life
     ) + sum(
-        b_cx/(1+r)**y for y in range(1,life+1) if y % c["battery_lifetime_years"] == 0 and y < life
+        w_cx/(1+r)**y  for y in range(1,life+1) if y % c["wind_lifetime_years"] == 0 and y < life
+    ) + sum(
+        d_cx/(1+r)**y  for y in range(1,life+1) if y % c["diesel_lifetime_years"] == 0 and y < life
+    ) + sum(
+        b_cx/(1+r)**y  for y in range(1,life+1) if y % c["battery_lifetime_years"] == 0 and y < life
     )
     tot_life = tot_cx + tot_ox*npv_f + repl
     total_kwh = sum(dispatch["total_supply"]) * npv_f
@@ -465,7 +469,6 @@ def run_simulation(params: dict) -> dict:
             "max_soc":                 fp("max_soc", 0.95),
             "initial_soc":             0.50,
             "cycle_life_80pct_dod":    ip("cycle_life_80pct_dod", 5000),
-            "calendar_life_years":     15,
             "cold_derating_factor":    fp("cold_derating_factor", 0.85),
             "cold_threshold_c":        fp("cold_threshold_c", -20.0),
             "self_discharge_per_hour": 0.0001,
