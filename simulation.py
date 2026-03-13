@@ -476,10 +476,10 @@ def run_simulation(params: dict) -> dict:
         "costs": {
             "pv_capex_per_kw":          fp("pv_capex_per_kw", 1600.0),
             "pv_opex_per_kw_year":       fp("pv_opex_per_kw_year", 18.0),
-            "pv_lifetime_years":         25,
+            "pv_lifetime_years":         ip("pv_lifetime_years", 25),
             "wind_capex_per_kw":         fp("wind_capex_per_kw", 3000.0),
             "wind_opex_per_kw_year":     fp("wind_opex_per_kw_year", 50.0),
-            "wind_lifetime_years":       25,
+            "wind_lifetime_years":       ip("wind_lifetime_years", 25),
             "diesel_capex_per_kw":       fp("diesel_capex_per_kw", 400.0),
             "diesel_opex_per_kw_year":   fp("diesel_opex_per_kw_year", 20.0),
             "diesel_lifetime_years":     ip("diesel_lifetime_years", 15),

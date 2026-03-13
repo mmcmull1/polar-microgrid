@@ -211,6 +211,7 @@ table.sta-tbl td.sta-num{text-align:right;color:var(--text-dim);}
       <div class="adv-row"><label>Albedo Boost</label><input class="num-input" id="a_albedo" type="number" value="1.15" step="0.01"><span class="adv-unit">factor</span></div>
       <div class="adv-row"><label>CAPEX</label><input class="num-input" id="a_pv_capex" type="number" value="1600"><span class="adv-unit">$/kW</span></div>
       <div class="adv-row"><label>O&amp;M Cost</label><input class="num-input" id="a_pv_opex" type="number" value="18"><span class="adv-unit">$/kW/yr</span></div>
+      <div class="adv-row"><label>Lifetime</label><input class="num-input" id="a_pv_life" type="number" value="25"><span class="adv-unit">years</span></div>
     </div></div>
   </div>
 
@@ -229,6 +230,7 @@ table.sta-tbl td.sta-num{text-align:right;color:var(--text-dim);}
       <div class="adv-row"><label>Wind Shear Exp.</label><input class="num-input" id="a_shear" type="number" value="0.12" step="0.01"><span class="adv-unit">—</span></div>
       <div class="adv-row"><label>CAPEX</label><input class="num-input" id="a_wind_capex" type="number" value="3000"><span class="adv-unit">$/kW</span></div>
       <div class="adv-row"><label>O&amp;M Cost</label><input class="num-input" id="a_wind_opex" type="number" value="50"><span class="adv-unit">$/kW/yr</span></div>
+      <div class="adv-row"><label>Lifetime</label><input class="num-input" id="a_wind_life" type="number" value="25"><span class="adv-unit">years</span></div>
     </div></div>
   </div>
 
@@ -457,6 +459,7 @@ async function runSim(){
     battery_capex_per_kwh:gv('a_batt_capex'),battery_opex_per_kwh_year:gv('a_batt_opex'),
     diesel_capex_per_kw:gv('a_dsl_capex'),diesel_opex_per_kw_year:gv('a_dsl_opex'),
     discount_rate:gv('a_discount'),project_lifetime_years:gv('a_life'),
+    pv_lifetime_years:gv('a_pv_life'),wind_lifetime_years:gv('a_wind_life'),
     diesel_lifetime_years:gv('a_dsl_life'),battery_lifetime_years:gv('a_batt_life'),
   };
 
