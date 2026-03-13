@@ -5,254 +5,132 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Polar Microgrid Simulator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:        #f1f5f9;
-  --bg2:       #ffffff;
-  --bg3:       #f8fafc;
-  --border:    #e2e8f0;
-  --border2:   #cbd5e1;
-  --accent:    #1e40af;
-  --accent2:   #2563eb;
-  --text:      #1e293b;
-  --text-dim:  #64748b;
-  --muted:     #94a3b8;
-  --red:       #dc2626;
-  --orange:    #ea580c;
-  --solar:     #d97706;
-  --wind:      #16a34a;
-  --diesel:    #6b7280;
-  --batt:      #2563eb;
+:root{
+  --bg:#f8f9fa; --bg2:#fff; --bg3:#f1f3f5;
+  --border:#dee2e6; --accent:#1a56db;
+  --text:#212529; --text-dim:#6c757d; --muted:#adb5bd;
+  --red:#dc2626; --orange:#ea580c;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  background: var(--bg); color: var(--text);
-  font-family: 'DM Sans', sans-serif; font-size: 14px;
-  min-height: 100vh; overflow-x: hidden;
-}
-.top-bar {
-  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100;
-  background: linear-gradient(90deg, #1e40af, #2563eb, #0ea5e9, #1e40af);
-  background-size: 300%; animation: barshift 8s ease infinite;
-}
-@keyframes barshift { 0%,100%{background-position:0%} 50%{background-position:100%} }
-.shell {
-  position: relative; z-index: 1;
-  display: grid; grid-template-columns: 340px 1fr;
-  grid-template-rows: auto 1fr; height: 100vh; overflow: hidden;
-}
-header {
-  grid-column: 1/-1; padding: 14px 24px;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 14px;
-  background: var(--bg2); flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
-}
-.logo-mark {
-  width: 34px; height: 34px; border: 1.5px solid var(--accent2);
-  border-radius: 7px; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; background: rgba(37,99,235,0.07);
-}
-.header-text h1 {
-  font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.1em; color: var(--accent); text-transform: uppercase;
-}
-.header-text p { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
-.header-credit { margin-left: auto; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); text-align: right; line-height: 1.6; }
-.sidebar {
-  background: var(--bg2); border-right: 1px solid var(--border);
-  overflow-y: auto; display: flex; flex-direction: column;
-  scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
-}
-.sidebar-inner { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
-.sec-label {
-  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
-  letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim);
-  padding-bottom: 7px; border-bottom: 1px solid var(--border);
-}
-.field { display: flex; flex-direction: column; gap: 5px; }
-.field label { font-size: 11px; color: var(--text-dim); font-weight: 500; }
-select, .num-input {
-  background: var(--bg3); border: 1px solid var(--border2);
-  color: var(--text); padding: 7px 10px; border-radius: 6px;
-  font-family: 'Space Mono', monospace; font-size: 11px;
-  outline: none; width: 100%; transition: border-color 0.2s, box-shadow 0.2s;
-}
-select {
-  appearance: none; padding-right: 28px; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center; background-size: 12px;
-}
-select:hover, select:focus, .num-input:hover, .num-input:focus {
-  border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(37,99,235,0.12);
-}
-.slider-row { display: flex; align-items: center; gap: 10px; }
-.slider-val { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); min-width: 62px; text-align: right; flex-shrink: 0; }
-input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: pointer; }
-
-/* Custom station panel */
-#custom-fields {
-  display: none; flex-direction: column; gap: 9px;
-  background: rgba(37,99,235,0.05); border: 1px solid rgba(37,99,235,0.2);
-  border-radius: 8px; padding: 12px;
-}
-#custom-fields.show { display: flex; }
-#custom-fields .chead {
-  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
-}
-
-/* Advanced accordions */
-.adv-group { border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-.adv-trigger {
-  width: 100%; background: var(--bg3); border: none; cursor: pointer;
-  padding: 9px 12px; display: flex; align-items: center; justify-content: space-between;
-  color: var(--text-dim); font-family: 'Space Mono', monospace;
-  font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
-  transition: background 0.15s, color 0.15s;
-}
-.adv-trigger:hover { background: var(--border); color: var(--text); }
-.adv-trigger .arr { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; }
-.adv-trigger .arr svg { width: 10px; height: 10px; }
-.adv-trigger.open .arr { transform: rotate(180deg); }
-.adv-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; background: var(--bg2); }
-.adv-body.open { max-height: 900px; }
-.adv-inner { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
-.adv-row { display: flex; align-items: center; gap: 8px; }
-.adv-row label { font-size: 11px; color: var(--text-dim); flex: 1; line-height: 1.3; }
-.adv-row .num-input { width: 90px; flex-shrink: 0; text-align: right; }
-.adv-unit { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 46px; }
-
-/* Run button */
-.btn-simulate {
-  width: 100%; padding: 12px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border: none; border-radius: 7px;
-  font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  color: #fff; cursor: pointer;
-  box-shadow: 0 2px 10px rgba(37,99,235,0.25);
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-.btn-simulate:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(37,99,235,0.35); }
-.btn-simulate:disabled { opacity: 0.5; cursor: not-allowed; }
-.spinner {
-  display: inline-block; width: 11px; height: 11px;
-  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
-  border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.status-msg { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); text-align: center; min-height: 16px; }
-.status-msg.err { color: var(--red); }
-.status-msg.ok  { color: #16a34a; }
-
-/* Main panel */
-.main { overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 16px; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
-
-/* Hero KPIs */
-.hero-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
-.hero-kpi {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 18px 20px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  position: relative; overflow: hidden;
-}
-.hero-kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
-.hero-kpi.neutral::before { background: linear-gradient(90deg, var(--accent), transparent); }
-.hero-kpi.alarm-red::before   { background: linear-gradient(90deg, var(--red), transparent); }
-.hero-kpi.alarm-orange::before{ background: linear-gradient(90deg, var(--orange), transparent); }
-.hero-label { font-size: 11px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-.hero-val   { font-family: 'Space Mono', monospace; font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
-.hero-kpi.alarm-red    .hero-val { color: var(--red); }
-.hero-kpi.alarm-orange .hero-val { color: var(--orange); }
-.hero-sub   { font-size: 11px; color: var(--text-dim); margin-top: 8px; line-height: 1.5; }
-.hero-sub strong { color: var(--text); font-weight: 600; }
-
-/* Small KPI strip */
-.kpi-strip { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; }
-.kpi {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: 8px; padding: 12px 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}
-.kpi-label { font-size: 10px; color: var(--text-dim); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
-.kpi-val   { font-family: 'Space Mono', monospace; font-size: 17px; font-weight: 700; color: var(--text); }
-.kpi-unit  { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 3px; }
-
-/* Summary tables */
-.summary-block { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.sum-card {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}
-.sum-title {
-  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
-  letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim);
-  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
-}
-.sum-row {
-  display: flex; justify-content: space-between; align-items: baseline;
-  padding: 4px 0; border-bottom: 1px solid rgba(226,232,240,0.7); gap: 8px;
-}
-.sum-row:last-child { border-bottom: none; }
-.sum-row .sl { font-size: 12px; color: var(--text-dim); }
-.sum-row .sv { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text); text-align: right; }
-.sum-row .sub { font-size: 9px; color: var(--muted); margin-left: 4px; }
-.sum-row.bold .sl { color: var(--text); font-weight: 600; }
-.sum-row.bold .sv { color: var(--accent); font-weight: 700; }
-
-/* Charts */
-.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.chart-grid .wide { grid-column: 1/-1; }
-.chart-card {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}
-.chart-title { font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-.dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
-.chart-wrap.tall  { position: relative; height: 200px; }
-.chart-wrap.short { position: relative; height: 150px; }
-
-/* Empty state */
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 14px; text-align: center; }
-.empty-icon  { width: 56px; height: 56px; border: 1.5px solid var(--border2); border-radius: 14px; display: flex; align-items: center; justify-content: center; opacity: 0.5; }
-.empty-state h2 { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-dim); }
-.empty-state p  { font-size: 12px; color: var(--muted); max-width: 260px; line-height: 1.6; }
-
-@media (max-width:900px) {
-  .shell { grid-template-columns:1fr; height:auto; overflow:visible; }
-  .sidebar { max-height:55vh; }
-  .hero-metrics,.kpi-strip,.summary-block { grid-template-columns:1fr; }
-  .chart-grid { grid-template-columns:1fr; }
-  .chart-grid .wide { grid-column:1; }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;font-size:14px;min-height:100vh;}
+.top-bar{display:none;}
+.shell{display:grid;grid-template-columns:320px 1fr;grid-template-rows:auto 1fr;height:100vh;overflow:hidden;}
+header{grid-column:1/-1;padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--bg2);flex-shrink:0;}
+.logo-mark{display:none;}
+.header-text h1{font-size:14px;font-weight:700;color:var(--text);}
+.header-text p{font-size:12px;color:var(--text-dim);margin-top:1px;}
+.header-credit{margin-left:auto;font-size:11px;color:var(--muted);text-align:right;line-height:1.5;}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;scrollbar-width:thin;}
+.sidebar-inner{padding:14px;display:flex;flex-direction:column;gap:12px;flex:1;}
+.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);padding-bottom:5px;border-bottom:1px solid var(--border);}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:11px;color:var(--text-dim);}
+select,.num-input{background:#fff;border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;outline:none;width:100%;}
+select{appearance:none;padding-right:24px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:10px;}
+select:focus,.num-input:focus{border-color:var(--accent);outline:none;}
+.slider-row{display:flex;align-items:center;gap:8px;}
+.slider-val{font-size:11px;color:var(--accent);min-width:58px;text-align:right;flex-shrink:0;}
+input[type=range]{flex:1;height:3px;accent-color:var(--accent);cursor:pointer;}
+#custom-fields{display:none;flex-direction:column;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:10px;}
+#custom-fields.show{display:flex;}
+#custom-fields .chead{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);}
+.adv-group{border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.adv-trigger{width:100%;background:var(--bg3);border:none;cursor:pointer;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;color:var(--text-dim);font-size:11px;font-weight:600;}
+.adv-trigger:hover{background:var(--border);}
+.adv-trigger .arr{width:12px;height:12px;flex-shrink:0;transition:transform 0.2s;display:flex;align-items:center;justify-content:center;}
+.adv-trigger .arr svg{width:10px;height:10px;}
+.adv-trigger.open .arr{transform:rotate(180deg);}
+.adv-body{max-height:0;overflow:hidden;transition:max-height 0.3s ease;}
+.adv-body.open{max-height:900px;}
+.adv-inner{padding:10px;display:flex;flex-direction:column;gap:7px;background:#fff;}
+.adv-row{display:flex;align-items:center;gap:6px;}
+.adv-row label{font-size:11px;color:var(--text-dim);flex:1;line-height:1.3;}
+.adv-row .num-input{width:84px;flex-shrink:0;text-align:right;}
+.adv-unit{font-size:11px;color:var(--muted);flex-shrink:0;width:52px;}
+.btn-simulate{width:100%;padding:9px;background:var(--accent);border:none;border-radius:4px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;}
+.btn-simulate:hover:not(:disabled){background:#1648c0;}
+.btn-simulate:disabled{opacity:0.5;cursor:not-allowed;}
+.spinner{display:inline-block;width:10px;height:10px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:5px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status-msg{font-size:11px;color:var(--text-dim);text-align:center;min-height:15px;}
+.status-msg.err{color:var(--red);}
+.status-msg.ok{color:#16a34a;}
+.main{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;}
+.station-table-card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.station-table-header{padding:12px 14px 10px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.station-table-header h2{font-size:13px;font-weight:700;color:var(--text);}
+.station-table-header p{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.btn-back{background:#fff;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.btn-back:hover{background:var(--bg3);}
+table.sta-tbl{width:100%;border-collapse:collapse;}
+table.sta-tbl thead tr{background:var(--bg3);}
+table.sta-tbl th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);}
+table.sta-tbl td{padding:7px 12px;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;}
+table.sta-tbl tr:last-child td{border-bottom:none;}
+table.sta-tbl td.sta-name{font-weight:600;}
+table.sta-tbl td.sta-num{text-align:right;color:var(--text-dim);}
+.hero-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.hero-kpi{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:14px 16px;}
+.hero-kpi.alarm-red{border-left:3px solid var(--red);}
+.hero-kpi.alarm-orange{border-left:3px solid var(--orange);}
+.hero-kpi.neutral{border-left:3px solid var(--accent);}
+.hero-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;}
+.hero-val{font-size:24px;font-weight:700;color:var(--text);line-height:1;}
+.hero-kpi.alarm-red .hero-val{color:var(--red);}
+.hero-kpi.alarm-orange .hero-val{color:var(--orange);}
+.hero-sub{font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.4;}
+.hero-sub strong{color:var(--text);}
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:10px 12px;}
+.kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);margin-bottom:4px;}
+.kpi-val{font-size:16px;font-weight:700;color:var(--text);}
+.kpi-unit{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.summary-block{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sum-card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:14px;}
+.sum-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--border);gap:8px;}
+.sum-row:last-child{border-bottom:none;}
+.sum-row .sl{font-size:12px;color:var(--text-dim);}
+.sum-row .sv{font-size:12px;color:var(--text);text-align:right;}
+.sum-row .sub{font-size:10px;color:var(--muted);margin-left:4px;}
+.sum-row.bold .sl{color:var(--text);font-weight:600;}
+.sum-row.bold .sv{color:var(--accent);font-weight:700;}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.chart-grid .wide{grid-column:1/-1;}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px;}
+.chart-title{font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.chart-wrap.tall{position:relative;height:200px;}
+.chart-wrap.short{position:relative;height:150px;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:10px;text-align:center;}
+.empty-icon{opacity:0.3;}
+.empty-state h2{font-size:14px;font-weight:600;color:var(--text-dim);}
+.empty-state p{font-size:12px;color:var(--muted);max-width:280px;line-height:1.5;}
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr;height:auto;overflow:visible;}
+  .sidebar{max-height:55vh;}
+  .hero-metrics,.kpi-strip,.summary-block{grid-template-columns:1fr;}
+  .chart-grid{grid-template-columns:1fr;}
+  .chart-grid .wide{grid-column:1;}
 }
 </style>
 </head>
 <body>
-<div class="top-bar"></div>
 <div class="shell">
 
 <header>
-  <div class="logo-mark">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.8">
-      <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-    </svg>
-  </div>
   <div class="header-text">
     <h1>Polar Microgrid Simulator</h1>
     <p>Antarctic research station power system modeling &amp; optimization</p>
   </div>
-  <div class="header-credit">Matt McMullen<br>University of Michigan</div>
+  <div class="header-credit">Matt McMullen &mdash; University of Michigan</div>
 </header>
 
+<!-- ── Sidebar ── -->
 <aside class="sidebar">
 <div class="sidebar-inner">
 
-  <!-- Station & Year -->
   <div>
     <div class="sec-label">Station &amp; Year</div>
     <div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
@@ -265,97 +143,53 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
           <option>Dumont</option><option value="Custom">Custom Station</option>
         </select>
       </div>
-
-      <!-- Custom station fields — revealed when Custom is selected -->
       <div id="custom-fields">
         <div class="chead">Custom Station Parameters</div>
         <div class="field"><label>Station Name</label>
-          <input class="num-input" id="c_name" type="text" value="My Station" style="font-family:'DM Sans',sans-serif;">
+          <input class="num-input" id="c_name" type="text" value="My Station" >
         </div>
-        <div class="adv-row"><label>Latitude</label>
-          <input class="num-input" id="c_lat" type="number" value="-70.0" step="0.01">
-          <span class="adv-unit">deg (S-)</span>
-        </div>
-        <div class="adv-row"><label>Longitude</label>
-          <input class="num-input" id="c_lon" type="number" value="0.0" step="0.01">
-          <span class="adv-unit">deg</span>
-        </div>
-        <div class="adv-row"><label>Altitude</label>
-          <input class="num-input" id="c_alt" type="number" value="50">
-          <span class="adv-unit">m</span>
-        </div>
-        <div class="adv-row"><label>Summer Personnel</label>
-          <input class="num-input" id="c_summer" type="number" value="50">
-          <span class="adv-unit">people</span>
-        </div>
-        <div class="adv-row"><label>Winter Personnel</label>
-          <input class="num-input" id="c_winter" type="number" value="20">
-          <span class="adv-unit">people</span>
-        </div>
+        <div class="adv-row"><label>Latitude</label><input class="num-input" id="c_lat" type="number" value="-70.0" step="0.01"><span class="adv-unit">deg (S-)</span></div>
+        <div class="adv-row"><label>Longitude</label><input class="num-input" id="c_lon" type="number" value="0.0" step="0.01"><span class="adv-unit">deg</span></div>
+        <div class="adv-row"><label>Altitude</label><input class="num-input" id="c_alt" type="number" value="50"><span class="adv-unit">m</span></div>
+        <div class="adv-row"><label>Summer Personnel</label><input class="num-input" id="c_summer" type="number" value="50"><span class="adv-unit">people</span></div>
+        <div class="adv-row"><label>Winter Personnel</label><input class="num-input" id="c_winter" type="number" value="20"><span class="adv-unit">people</span></div>
       </div>
-
       <div class="field">
         <label>Simulation Year</label>
-        <select id="year">
-          <option>2022</option><option selected>2023</option><option>2024</option>
-        </select>
+        <select id="year"><option>2022</option><option selected>2023</option><option>2024</option></select>
       </div>
     </div>
   </div>
 
-  <!-- Generation Mix -->
   <div>
     <div class="sec-label">Generation Mix</div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
-      <div class="field">
-        <label>Solar PV Capacity</label>
-        <div class="slider-row">
-          <input type="range" id="solar_kw" min="0" max="1000" step="10" value="100"
-            oninput="sv('solar_kw_v',this.value+' kW')">
-          <span class="slider-val" id="solar_kw_v">100 kW</span>
-        </div>
+      <div class="field"><label>Solar PV Capacity</label>
+        <div class="slider-row"><input type="range" id="solar_kw" min="0" max="1000" step="10" value="100" oninput="sv('solar_kw_v',this.value+' kW')"><span class="slider-val" id="solar_kw_v">100 kW</span></div>
       </div>
-      <div class="field">
-        <label>Wind Capacity</label>
-        <div class="slider-row">
-          <input type="range" id="wind_kw" min="0" max="2000" step="50" value="200"
-            oninput="sv('wind_kw_v',this.value+' kW')">
-          <span class="slider-val" id="wind_kw_v">200 kW</span>
-        </div>
+      <div class="field"><label>Wind Capacity</label>
+        <div class="slider-row"><input type="range" id="wind_kw" min="0" max="2000" step="50" value="200" oninput="sv('wind_kw_v',this.value+' kW')"><span class="slider-val" id="wind_kw_v">200 kW</span></div>
       </div>
-      <div class="field">
-        <label>Diesel Capacity</label>
-        <div class="slider-row">
-          <input type="range" id="diesel_kw" min="0" max="2000" step="50" value="600"
-            oninput="sv('diesel_kw_v',this.value+' kW')">
-          <span class="slider-val" id="diesel_kw_v">600 kW</span>
-        </div>
+      <div class="field"><label>Diesel Capacity</label>
+        <div class="slider-row"><input type="range" id="diesel_kw" min="0" max="2000" step="50" value="600" oninput="sv('diesel_kw_v',this.value+' kW')"><span class="slider-val" id="diesel_kw_v">600 kW</span></div>
       </div>
-      <div class="field">
-        <label>Battery Storage</label>
-        <div class="slider-row">
-          <input type="range" id="battery_kwh" min="0" max="5000" step="100" value="500"
-            oninput="sv('battery_kwh_v',this.value+' kWh')">
-          <span class="slider-val" id="battery_kwh_v">500 kWh</span>
-        </div>
+      <div class="field"><label>Battery Storage</label>
+        <div class="slider-row"><input type="range" id="battery_kwh" min="0" max="5000" step="100" value="500" oninput="sv('battery_kwh_v',this.value+' kWh')"><span class="slider-val" id="battery_kwh_v">500 kWh</span></div>
       </div>
     </div>
   </div>
 
-  <!-- Control Strategy -->
   <div>
     <div class="sec-label">Control Strategy</div>
     <div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
-      <div class="field">
-        <label>Solar Tracking</label>
+      <div class="field"><label>Solar Tracking</label>
         <select id="tracking_mode">
           <option value="fixed">Fixed (no tracking)</option>
           <option value="single_axis">Single-Axis (+20%)</option>
           <option value="dual_axis" selected>Dual-Axis (+35%)</option>
         </select>
       </div>
-      <div class="field">
-        <label>Dispatch Strategy</label>
+      <div class="field"><label>Dispatch Strategy</label>
         <select id="dispatch_mode">
           <option value="renewable_priority" selected>Renewable Priority</option>
           <option value="cost_priority">Cost Priority</option>
@@ -364,7 +198,6 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
     </div>
   </div>
 
-  <!-- Advanced: Solar -->
   <div class="adv-group">
     <button class="adv-trigger" onclick="toggleAdv(this)">Advanced — Solar PV
       <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
@@ -381,7 +214,6 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
     </div></div>
   </div>
 
-  <!-- Advanced: Wind -->
   <div class="adv-group">
     <button class="adv-trigger" onclick="toggleAdv(this)">Advanced — Wind Turbines
       <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
@@ -400,7 +232,6 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
     </div></div>
   </div>
 
-  <!-- Advanced: Battery -->
   <div class="adv-group">
     <button class="adv-trigger" onclick="toggleAdv(this)">Advanced — Battery Storage
       <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
@@ -419,7 +250,6 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
     </div></div>
   </div>
 
-  <!-- Advanced: Diesel -->
   <div class="adv-group">
     <button class="adv-trigger" onclick="toggleAdv(this)">Advanced — Diesel Generator
       <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
@@ -434,7 +264,6 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
     </div></div>
   </div>
 
-  <!-- Advanced: Station & Demand (hidden when Custom selected — those fields are inline above) -->
   <div class="adv-group" id="adv-station">
     <button class="adv-trigger" onclick="toggleAdv(this)">Advanced — Station &amp; Demand
       <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
@@ -449,7 +278,6 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
     </div></div>
   </div>
 
-  <!-- Advanced: Economics -->
   <div class="adv-group">
     <button class="adv-trigger" onclick="toggleAdv(this)">Advanced — Project Economics
       <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
@@ -462,7 +290,6 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
     </div></div>
   </div>
 
-  <!-- Run -->
   <div style="display:flex;flex-direction:column;gap:8px">
     <button class="btn-simulate" id="btn-sim" onclick="runSim()">Run Simulation</button>
     <div class="status-msg" id="status"></div>
@@ -474,78 +301,119 @@ input[type=range] { flex: 1; height: 4px; accent-color: var(--accent2); cursor: 
 </div>
 </aside>
 
+<!-- ── Main ── -->
 <main class="main" id="main">
-  <div class="empty-state" id="empty">
-    <div class="empty-icon">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-        <circle cx="12" cy="12" r="5"/>
-        <path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
-      </svg>
+
+  <!-- Station reference table -->
+  <div id="station-view">
+    <div class="station-table-card">
+      <div class="station-table-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div>
+          <h2>Antarctic Research Stations</h2>
+          <p>Reference table — select a station from the dropdown on the left, then run the simulation</p>
+        </div>
+        <div id="back-btn-wrap" style="display:none;flex-shrink:0;">
+          <button class="btn-back" onclick="showStationView()">Change Station</button>
+        </div>
+      </div>
+      <table class="sta-tbl">
+        <thead>
+          <tr>
+            <th>Station</th>
+            <th>Country</th>
+            <th style="text-align:right">Latitude</th>
+            <th style="text-align:right">Longitude</th>
+            <th style="text-align:right">Altitude (m)</th>
+            <th style="text-align:right">Summer Personnel</th>
+            <th style="text-align:right">Winter Personnel</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="sta-name">McMurdo</td><td>USA</td><td class="sta-num">77.85 S</td><td class="sta-num">166.67 E</td><td class="sta-num">24</td><td class="sta-num">1,000</td><td class="sta-num">250</td></tr>
+          <tr><td class="sta-name">Palmer</td><td>USA</td><td class="sta-num">64.77 S</td><td class="sta-num">64.05 W</td><td class="sta-num">15</td><td class="sta-num">46</td><td class="sta-num">20</td></tr>
+          <tr><td class="sta-name">SouthPole</td><td>USA</td><td class="sta-num">90.00 S</td><td class="sta-num">—</td><td class="sta-num">2,835</td><td class="sta-num">200</td><td class="sta-num">50</td></tr>
+          <tr><td class="sta-name">Casey</td><td>Australia</td><td class="sta-num">66.28 S</td><td class="sta-num">110.53 E</td><td class="sta-num">42</td><td class="sta-num">120</td><td class="sta-num">20</td></tr>
+          <tr><td class="sta-name">Rothera</td><td>UK</td><td class="sta-num">67.57 S</td><td class="sta-num">68.13 W</td><td class="sta-num">16</td><td class="sta-num">100</td><td class="sta-num">22</td></tr>
+          <tr><td class="sta-name">Mawson</td><td>Australia</td><td class="sta-num">67.60 S</td><td class="sta-num">62.87 E</td><td class="sta-num">16</td><td class="sta-num">60</td><td class="sta-num">20</td></tr>
+          <tr><td class="sta-name">Davis</td><td>Australia</td><td class="sta-num">68.58 S</td><td class="sta-num">77.97 E</td><td class="sta-num">18</td><td class="sta-num">120</td><td class="sta-num">22</td></tr>
+          <tr><td class="sta-name">Halley</td><td>UK</td><td class="sta-num">75.58 S</td><td class="sta-num">26.57 W</td><td class="sta-num">30</td><td class="sta-num">70</td><td class="sta-num">16</td></tr>
+          <tr><td class="sta-name">Neumayer</td><td>Germany</td><td class="sta-num">70.65 S</td><td class="sta-num">8.26 W</td><td class="sta-num">42</td><td class="sta-num">50</td><td class="sta-num">10</td></tr>
+          <tr><td class="sta-name">Dumont</td><td>France</td><td class="sta-num">66.67 S</td><td class="sta-num">140.00 E</td><td class="sta-num">40</td><td class="sta-num">80</td><td class="sta-num">25</td></tr>
+        </tbody>
+      </table>
     </div>
-    <h2>No Simulation Yet</h2>
-    <p>Configure the generation mix and parameters on the left, then click Run Simulation.</p>
+    <!-- Empty state -->
+    <div class="empty-state" id="empty" style="margin-top:16px;">
+      <div class="empty-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+          <circle cx="12" cy="12" r="5"/>
+          <path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+        </svg>
+      </div>
+      <h2>No Simulation Yet</h2>
+      <p>Select a station from the dropdown, configure parameters, then click Run Simulation.</p>
+    </div>
   </div>
+
+  <!-- Results (shown after sim runs) -->
   <div id="results" style="display:none;"></div>
+
 </main>
 </div>
 
 <script>
-Chart.defaults.color = '#64748b';
-Chart.defaults.borderColor = '#e2e8f0';
-Chart.defaults.font.family = "'DM Sans', sans-serif";
-Chart.defaults.font.size = 11;
+Chart.defaults.color='#64748b';
+Chart.defaults.borderColor='#e2e8f0';
+Chart.defaults.font.family='system-ui,sans-serif';
+Chart.defaults.font.size=11;
 
-const STATION_DEFAULTS = {
-  McMurdo:{summer:1000,winter:250}, Palmer:{summer:46,winter:20},
-  SouthPole:{summer:200,winter:50}, Casey:{summer:120,winter:20},
-  Rothera:{summer:100,winter:22},   Mawson:{summer:60,winter:20},
-  Davis:{summer:120,winter:22},     Halley:{summer:70,winter:16},
-  Neumayer:{summer:50,winter:10},   Dumont:{summer:80,winter:25},
+/* ── Station defaults ── */
+const STATIONS={
+  McMurdo:  {summer:1000,winter:250}, Palmer:   {summer:46,  winter:20},
+  SouthPole:{summer:200, winter:50},  Casey:    {summer:120, winter:20},
+  Rothera:  {summer:100, winter:22},  Mawson:   {summer:60,  winter:20},
+  Davis:    {summer:120, winter:22},  Halley:   {summer:70,  winter:16},
+  Neumayer: {summer:50,  winter:10},  Dumont:   {summer:80,  winter:25},
 };
 
-function sv(id,val){document.getElementById(id).textContent=val;}
+/* ── Show station table + hide results ── */
+function showStationView(){
+  document.getElementById('station-view').style.display='block';
+  document.getElementById('results').style.display='none';
+  document.getElementById('empty').style.display='flex';
+}
 
+/* ── Station dropdown change ── */
 function onStationChange(){
-  const s = document.getElementById('station').value;
-  const cf = document.getElementById('custom-fields');
-  const as = document.getElementById('adv-station');
+  const s=document.getElementById('station').value;
+  const cf=document.getElementById('custom-fields');
+  const as=document.getElementById('adv-station');
   if(s==='Custom'){
-    cf.classList.add('show');
-    as.style.display='none';
+    cf.classList.add('show'); as.style.display='none';
   } else {
-    cf.classList.remove('show');
-    as.style.display='block';
-    const d=STATION_DEFAULTS[s];
-    if(d){document.getElementById('a_summer').value=d.summer; document.getElementById('a_winter').value=d.winter;}
+    cf.classList.remove('show'); as.style.display='block';
+    const d=STATIONS[s];
+    if(d){document.getElementById('a_summer').value=d.summer;document.getElementById('a_winter').value=d.winter;}
   }
 }
 
-function toggleAdv(btn){
-  btn.classList.toggle('open');
-  btn.nextElementSibling.classList.toggle('open');
-}
-
-function fmt(n,dec=0){
-  if(n==null)return '—';
-  return n.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
-}
+function sv(id,val){document.getElementById(id).textContent=val;}
+function toggleAdv(btn){btn.classList.toggle('open');btn.nextElementSibling.classList.toggle('open');}
+function fmt(n,dec=0){if(n==null)return '—';return n.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});}
 function fmtD(n){return '$'+fmt(n);}
-
 const charts={};
 function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function gv(id){const e=document.getElementById(id);return e?parseFloat(e.value):0;}
 function gs(id){return document.getElementById(id).value;}
 
-// Convert day indices to month-name labels for daily charts
 function makeMonthLabels(n){
   const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const mdays=[31,28,31,30,31,30,31,31,30,31,30,31];
   const labels=[];
-  let cum=0, mi=0;
+  let cum=0,mi=0;
   for(let i=0;i<n;i++){
-    if(i===cum){ labels.push(names[mi]); }
-    else { labels.push(''); }
-    if(i===cum+mdays[mi]-1){ cum+=mdays[mi]; mi=Math.min(mi+1,11); }
+    if(i===cum){labels.push(names[mi]);}else{labels.push('');}
+    if(i===cum+mdays[mi]-1){cum+=mdays[mi];mi=Math.min(mi+1,11);}
   }
   return labels;
 }
@@ -558,43 +426,38 @@ async function runSim(){
   status.className='status-msg';
   status.textContent='Pulling NASA POWER data — ~15-30 seconds...';
 
-  const isCustom = gs('station')==='Custom';
-  const stationName = isCustom ? (document.getElementById('c_name').value||'Custom') : gs('station');
+  const isCustom=gs('station')==='Custom';
+  const stationName=isCustom?(document.getElementById('c_name').value||'Custom'):gs('station');
 
   const params={
-    station: stationName,
-    year: parseInt(gs('year')),
-    solar_kw: gv('solar_kw'), wind_kw: gv('wind_kw'),
-    diesel_kw: gv('diesel_kw'), battery_kwh: gv('battery_kwh'),
-    tracking_mode: gs('tracking_mode'), dispatch_mode: gs('dispatch_mode'),
-    ...(isCustom ? {
-      latitude: gv('c_lat'), longitude: gv('c_lon'),
-      altitude: gv('c_alt'),
-      personnel_summer: gv('c_summer'), personnel_winter: gv('c_winter'),
-    } : {}),
-    panel_rated_power_w: gv('a_panel_w'), panel_efficiency_stc: gv('a_eta_stc'),
-    panel_area_m2: gv('a_area'), noct_c: gv('a_noct'),
-    temp_coefficient_pmax: gv('a_tcoef'), albedo_boost_factor: gv('a_albedo'),
-    turbine_rated_power_kw: gv('a_turb_kw'), rotor_diameter_m: gv('a_rotor_d'),
-    hub_height_m: gv('a_hub_h'), cut_in_speed_ms: gv('a_cutin'),
-    rated_speed_ms: gv('a_rated_v'), cut_out_speed_ms: gv('a_cutout'),
-    cp_max: gv('a_cp'), wind_shear_exponent: gv('a_shear'),
-    round_trip_efficiency: gv('a_rt_eff'), max_charge_rate_c: gv('a_chg_c'),
-    max_discharge_rate_c: gv('a_dis_c'), min_soc: gv('a_soc_min'),
-    max_soc: gv('a_soc_max'), cold_derating_factor: gv('a_cold_df'),
-    cold_threshold_c: gv('a_cold_thr'), cycle_life_80pct_dod: gv('a_cycles'),
-    diesel_min_load_fraction: gv('a_dsl_min'), fuel_consumption_l_kwh: gv('a_dsl_fuel'),
-    fuel_cost_per_liter: gv('a_dsl_cost'), maintenance_cost_per_kwh: gv('a_dsl_maint'),
-    personnel_summer: isCustom ? gv('c_summer') : gv('a_summer'),
-    personnel_winter: isCustom ? gv('c_winter') : gv('a_winter'),
-    base_load_kw_per_person: gv('a_base_pp'), peak_factor: gv('a_peak_f'),
-    heating_fraction: gv('a_heat_f'), infrastructure_base_kw: gv('a_infra'),
-    pv_capex_per_kw: gv('a_pv_capex'), pv_opex_per_kw_year: gv('a_pv_opex'),
-    wind_capex_per_kw: gv('a_wind_capex'), wind_opex_per_kw_year: gv('a_wind_opex'),
-    battery_capex_per_kwh: gv('a_batt_capex'), battery_opex_per_kwh_year: gv('a_batt_opex'),
-    diesel_capex_per_kw: gv('a_dsl_capex'), diesel_opex_per_kw_year: gv('a_dsl_opex'),
-    discount_rate: gv('a_discount'), project_lifetime_years: gv('a_life'),
-    diesel_lifetime_years: gv('a_dsl_life'), battery_lifetime_years: gv('a_batt_life'),
+    station:stationName, year:parseInt(gs('year')),
+    solar_kw:gv('solar_kw'), wind_kw:gv('wind_kw'),
+    diesel_kw:gv('diesel_kw'), battery_kwh:gv('battery_kwh'),
+    tracking_mode:gs('tracking_mode'), dispatch_mode:gs('dispatch_mode'),
+    ...(isCustom?{latitude:gv('c_lat'),longitude:gv('c_lon'),altitude:gv('c_alt'),personnel_summer:gv('c_summer'),personnel_winter:gv('c_winter')}:{}),
+    panel_rated_power_w:gv('a_panel_w'),panel_efficiency_stc:gv('a_eta_stc'),
+    panel_area_m2:gv('a_area'),noct_c:gv('a_noct'),
+    temp_coefficient_pmax:gv('a_tcoef'),albedo_boost_factor:gv('a_albedo'),
+    turbine_rated_power_kw:gv('a_turb_kw'),rotor_diameter_m:gv('a_rotor_d'),
+    hub_height_m:gv('a_hub_h'),cut_in_speed_ms:gv('a_cutin'),
+    rated_speed_ms:gv('a_rated_v'),cut_out_speed_ms:gv('a_cutout'),
+    cp_max:gv('a_cp'),wind_shear_exponent:gv('a_shear'),
+    round_trip_efficiency:gv('a_rt_eff'),max_charge_rate_c:gv('a_chg_c'),
+    max_discharge_rate_c:gv('a_dis_c'),min_soc:gv('a_soc_min'),
+    max_soc:gv('a_soc_max'),cold_derating_factor:gv('a_cold_df'),
+    cold_threshold_c:gv('a_cold_thr'),cycle_life_80pct_dod:gv('a_cycles'),
+    diesel_min_load_fraction:gv('a_dsl_min'),fuel_consumption_l_kwh:gv('a_dsl_fuel'),
+    fuel_cost_per_liter:gv('a_dsl_cost'),maintenance_cost_per_kwh:gv('a_dsl_maint'),
+    personnel_summer:isCustom?gv('c_summer'):gv('a_summer'),
+    personnel_winter:isCustom?gv('c_winter'):gv('a_winter'),
+    base_load_kw_per_person:gv('a_base_pp'),peak_factor:gv('a_peak_f'),
+    heating_fraction:gv('a_heat_f'),infrastructure_base_kw:gv('a_infra'),
+    pv_capex_per_kw:gv('a_pv_capex'),pv_opex_per_kw_year:gv('a_pv_opex'),
+    wind_capex_per_kw:gv('a_wind_capex'),wind_opex_per_kw_year:gv('a_wind_opex'),
+    battery_capex_per_kwh:gv('a_batt_capex'),battery_opex_per_kwh_year:gv('a_batt_opex'),
+    diesel_capex_per_kw:gv('a_dsl_capex'),diesel_opex_per_kw_year:gv('a_dsl_opex'),
+    discount_rate:gv('a_discount'),project_lifetime_years:gv('a_life'),
+    diesel_lifetime_years:gv('a_dsl_life'),battery_lifetime_years:gv('a_batt_life'),
   };
 
   try{
@@ -614,19 +477,25 @@ async function runSim(){
 }
 
 function renderResults(d){
+  // Hide map/empty, show results, show "Change Station" button
   document.getElementById('empty').style.display='none';
+  document.getElementById('station-view').style.display='none';
+  document.getElementById('back-btn-wrap').style.display='block';
   const el=document.getElementById('results');
   el.style.display='block'; el.innerHTML='';
 
-  const k=d.kpis, c=d.charts, costs=d.costs;
-  const unmetPct = k.annual_demand_mwh>0 ? (k.unmet_demand_mwh/k.annual_demand_mwh*100) : 0;
+  // "Change Station" button at top of results
+  el.innerHTML+=`
+  <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+    <button class="btn-back" onclick="showStationView()">Change Station</button>
+  </div>`;
 
-  // Color logic: red >1%, orange >0 and <=1%, neutral if zero
-  let cls='neutral', valStyle='color:var(--text)';
+  const k=d.kpis,c=d.charts,costs=d.costs;
+  const unmetPct=k.annual_demand_mwh>0?(k.unmet_demand_mwh/k.annual_demand_mwh*100):0;
+  let cls='neutral',valStyle='color:var(--text)';
   if(unmetPct>1){cls='alarm-red';valStyle='color:var(--red)';}
   else if(unmetPct>0){cls='alarm-orange';valStyle='color:var(--orange)';}
 
-  // Hero metrics
   el.innerHTML+=`
   <div class="hero-metrics">
     <div class="hero-kpi ${cls}">
@@ -652,7 +521,6 @@ function renderResults(d){
     </div>
   </div>`;
 
-  // Secondary KPIs — plain labels, no emojis, no color
   el.innerHTML+=`
   <div class="kpi-strip">
     <div class="kpi"><div class="kpi-label">Renewable Fraction</div><div class="kpi-val">${fmt(k.re_fraction_pct,1)}%</div><div class="kpi-unit">${fmt(k.diesel_fraction_pct,1)}% diesel</div></div>
@@ -667,7 +535,6 @@ function renderResults(d){
     <div class="kpi"><div class="kpi-label">Annual OPEX</div><div class="kpi-val">${fmtD(costs.total_opex)}</div><div class="kpi-unit">/yr operating</div></div>
   </div>`;
 
-  // Summary tables — no LCOE banner (it's already at top)
   el.innerHTML+=`
   <div class="summary-block">
     <div class="sum-card">
@@ -704,33 +571,14 @@ function renderResults(d){
     </div>
   </div>`;
 
-  // Charts — 6 only, no pie charts
   el.innerHTML+=`
   <div class="chart-grid">
-    <div class="chart-card wide">
-      <div class="chart-title"><span class="dot" style="background:#dc2626"></span>Supply vs Demand — Daily Averages</div>
-      <div class="chart-wrap tall"><canvas id="ch-sd"></canvas></div>
-    </div>
-    <div class="chart-card wide">
-      <div class="chart-title"><span class="dot" style="background:#d97706"></span>Generation Mix vs Demand</div>
-      <div class="chart-wrap tall"><canvas id="ch-mix"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title"><span class="dot" style="background:#2563eb"></span>Battery State of Charge</div>
-      <div class="chart-wrap short"><canvas id="ch-soc"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title"><span class="dot" style="background:#0ea5e9"></span>Monthly Energy Balance (MWh)</div>
-      <div class="chart-wrap short"><canvas id="ch-mon"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title"><span class="dot" style="background:#16a34a"></span>Temperature (deg C)</div>
-      <div class="chart-wrap short"><canvas id="ch-temp"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title"><span class="dot" style="background:#15803d"></span>Wind Speed (m/s)</div>
-      <div class="chart-wrap short"><canvas id="ch-ws"></canvas></div>
-    </div>
+    <div class="chart-card wide"><div class="chart-title">Supply vs Demand — Daily Averages</div><div class="chart-wrap tall"><canvas id="ch-sd"></canvas></div></div>
+    <div class="chart-card wide"><div class="chart-title">Generation Mix vs Demand</div><div class="chart-wrap tall"><canvas id="ch-mix"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Battery State of Charge</div><div class="chart-wrap short"><canvas id="ch-soc"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Monthly Energy Balance (MWh)</div><div class="chart-wrap short"><canvas id="ch-mon"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Temperature (deg C)</div><div class="chart-wrap short"><canvas id="ch-temp"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Wind Speed (m/s)</div><div class="chart-wrap short"><canvas id="ch-ws"></canvas></div></div>
   </div>`;
 
   setTimeout(()=>buildCharts(c,costs),60);
@@ -738,104 +586,56 @@ function renderResults(d){
 
 function buildCharts(c,costs){
   const n=c.demand_daily.length;
-  const mLabels=makeMonthLabels(n);
-
+  const mL=makeMonthLabels(n);
   const base={
-    responsive:true, maintainAspectRatio:false, animation:{duration:400},
+    responsive:true,maintainAspectRatio:false,animation:{duration:400},
     interaction:{mode:'index',intersect:false},
     plugins:{
       legend:{display:true,labels:{color:'#64748b',boxWidth:9,font:{size:10}}},
-      tooltip:{backgroundColor:'rgba(255,255,255,0.97)',borderColor:'#e2e8f0',borderWidth:1,
-        titleColor:'#1e293b',bodyColor:'#64748b',padding:10,
-        titleFont:{family:"'Space Mono',monospace",size:10}},
+      tooltip:{backgroundColor:'#fff',borderColor:'#dee2e6',borderWidth:1,titleColor:'#212529',bodyColor:'#6c757d',padding:8},
     },
     scales:{
-      x:{border:{color:'#e2e8f0'},grid:{color:'rgba(226,232,240,0.6)'},
-        ticks:{color:'#94a3b8',font:{size:9},maxRotation:0},
-        title:{display:true,text:'Month',color:'#94a3b8',font:{size:9}}},
-      y:{border:{color:'#e2e8f0'},grid:{color:'rgba(226,232,240,0.6)'},
-        ticks:{color:'#94a3b8',font:{size:9}},
-        title:{display:true,color:'#94a3b8',font:{size:9}}},
+      x:{border:{color:'#e2e8f0'},grid:{color:'rgba(226,232,240,0.6)'},ticks:{color:'#94a3b8',font:{size:9},maxRotation:0},title:{display:true,text:'Month',color:'#94a3b8',font:{size:9}}},
+      y:{border:{color:'#e2e8f0'},grid:{color:'rgba(226,232,240,0.6)'},ticks:{color:'#94a3b8',font:{size:9}},title:{display:true,color:'#94a3b8',font:{size:9}}},
     }
   };
+  function opts(y){const o=JSON.parse(JSON.stringify(base));o.scales.y.title.text=y;return o;}
 
-  function opts(yLbl){
-    const o=JSON.parse(JSON.stringify(base));
-    o.scales.y.title.text=yLbl; return o;
-  }
+  dc('sd'); charts['sd']=new Chart(document.getElementById('ch-sd'),{type:'line',data:{labels:mL,datasets:[
+    {label:'Demand',data:c.demand_daily,borderColor:'#dc2626',borderWidth:1.5,pointRadius:0,tension:0.3,fill:false},
+    {label:'Supply',data:c.supply_daily,borderColor:'#1d4ed8',borderWidth:1.5,pointRadius:0,tension:0.3,fill:{target:0,above:'rgba(22,163,74,0.1)',below:'rgba(220,38,38,0.1)'}},
+  ]},options:opts('kW')});
 
-  // Supply vs Demand
-  dc('sd');
-  charts['sd']=new Chart(document.getElementById('ch-sd'),{
-    type:'line',
-    data:{labels:mLabels,datasets:[
-      {label:'Demand',data:c.demand_daily,borderColor:'#dc2626',borderWidth:1.5,pointRadius:0,tension:0.3,fill:false},
-      {label:'Supply',data:c.supply_daily,borderColor:'#1d4ed8',borderWidth:1.5,pointRadius:0,tension:0.3,
-       fill:{target:0,above:'rgba(22,163,74,0.1)',below:'rgba(220,38,38,0.1)'}},
-    ]},
-    options:opts('kW')
-  });
+  dc('mix'); charts['mix']=new Chart(document.getElementById('ch-mix'),{type:'line',data:{labels:mL,datasets:[
+    {label:'Diesel', data:c.diesel_daily,borderColor:'#6b7280',backgroundColor:'rgba(107,114,128,0.4)',borderWidth:0.5,pointRadius:0,fill:true,tension:0.3},
+    {label:'Battery',data:c.bdis_daily, borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.35)', borderWidth:0.5,pointRadius:0,fill:true,tension:0.3},
+    {label:'Wind',   data:c.w2l_daily,  borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.4)',  borderWidth:0.5,pointRadius:0,fill:true,tension:0.3},
+    {label:'Solar',  data:c.pv2l_daily, borderColor:'#d97706',backgroundColor:'rgba(217,119,6,0.4)',  borderWidth:0.5,pointRadius:0,fill:true,tension:0.3},
+    {label:'Demand', data:c.demand_daily,borderColor:'#dc2626',backgroundColor:'transparent',          borderWidth:2,  pointRadius:0,fill:false,tension:0.3},
+  ]},options:opts('kW')});
 
-  // Generation mix
-  dc('mix');
-  charts['mix']=new Chart(document.getElementById('ch-mix'),{
-    type:'line',
-    data:{labels:mLabels,datasets:[
-      {label:'Diesel', data:c.diesel_daily,borderColor:'#6b7280',backgroundColor:'rgba(107,114,128,0.4)',borderWidth:0.5,pointRadius:0,fill:true,tension:0.3},
-      {label:'Battery',data:c.bdis_daily, borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.35)',  borderWidth:0.5,pointRadius:0,fill:true,tension:0.3},
-      {label:'Wind',   data:c.w2l_daily,  borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.4)',   borderWidth:0.5,pointRadius:0,fill:true,tension:0.3},
-      {label:'Solar',  data:c.pv2l_daily, borderColor:'#d97706',backgroundColor:'rgba(217,119,6,0.4)',   borderWidth:0.5,pointRadius:0,fill:true,tension:0.3},
-      {label:'Demand', data:c.demand_daily,borderColor:'#dc2626',backgroundColor:'transparent',          borderWidth:2,  pointRadius:0,fill:false,tension:0.3},
-    ]},
-    options:opts('kW')
-  });
+  dc('soc'); const so=opts('%'); so.scales.y.min=0; so.scales.y.max=100;
+  charts['soc']=new Chart(document.getElementById('ch-soc'),{type:'line',data:{labels:mL,datasets:[
+    {label:'State of Charge (%)',data:c.soc_pct_daily,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.08)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.3},
+  ]},options:so});
 
-  // Battery SOC
-  dc('soc');
-  const socOpts=opts('%');
-  socOpts.scales.y.min=0; socOpts.scales.y.max=100;
-  charts['soc']=new Chart(document.getElementById('ch-soc'),{
-    type:'line',
-    data:{labels:mLabels,datasets:[
-      {label:'State of Charge (%)',data:c.soc_pct_daily,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.08)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.3},
-    ]},
-    options:socOpts
-  });
+  dc('mon'); const mo=JSON.parse(JSON.stringify(base)); mo.scales.y.title.text='MWh'; mo.scales.x.title.text='Month';
+  charts['mon']=new Chart(document.getElementById('ch-mon'),{type:'bar',data:{labels:c.months,datasets:[
+    {label:'Demand',data:c.demand_monthly,backgroundColor:'rgba(220,38,38,0.7)'},
+    {label:'Renewable Generation',data:c.re_monthly,backgroundColor:'rgba(22,163,74,0.7)'},
+    {label:'Diesel',data:c.diesel_monthly,backgroundColor:'rgba(107,114,128,0.55)'},
+  ]},options:mo});
 
-  // Monthly energy
-  dc('mon');
-  const monOpts=JSON.parse(JSON.stringify(base));
-  monOpts.scales.y.title.text='MWh'; monOpts.scales.x.title.text='Month';
-  charts['mon']=new Chart(document.getElementById('ch-mon'),{
-    type:'bar',
-    data:{labels:c.months,datasets:[
-      {label:'Demand',           data:c.demand_monthly, backgroundColor:'rgba(220,38,38,0.7)'},
-      {label:'Renewable Generation',data:c.re_monthly,  backgroundColor:'rgba(22,163,74,0.7)'},
-      {label:'Diesel',           data:c.diesel_monthly, backgroundColor:'rgba(107,114,128,0.55)'},
-    ]},
-    options:monOpts
-  });
+  dc('temp'); charts['temp']=new Chart(document.getElementById('ch-temp'),{type:'line',data:{labels:mL,datasets:[
+    {label:'Temperature (deg C)',data:c.temp_daily,borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.07)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.4},
+  ]},options:opts('deg C')});
 
-  // Temperature
-  dc('temp');
-  charts['temp']=new Chart(document.getElementById('ch-temp'),{
-    type:'line',
-    data:{labels:mLabels,datasets:[
-      {label:'Temperature (deg C)',data:c.temp_daily,borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.07)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.4},
-    ]},
-    options:opts('deg C')
-  });
-
-  // Wind speed
-  dc('ws');
-  charts['ws']=new Chart(document.getElementById('ch-ws'),{
-    type:'line',
-    data:{labels:mLabels,datasets:[
-      {label:'Wind Speed (m/s)',data:c.wind_spd_daily,borderColor:'#15803d',backgroundColor:'rgba(21,128,61,0.07)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.3},
-    ]},
-    options:opts('m/s')
-  });
+  dc('ws'); charts['ws']=new Chart(document.getElementById('ch-ws'),{type:'line',data:{labels:mL,datasets:[
+    {label:'Wind Speed (m/s)',data:c.wind_spd_daily,borderColor:'#15803d',backgroundColor:'rgba(21,128,61,0.07)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.3},
+  ]},options:opts('m/s')});
 }
+
+
 </script>
 </body>
 </html>

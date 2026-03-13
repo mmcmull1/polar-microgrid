@@ -257,7 +257,10 @@ def run_dispatch(weather, demand, pv_out, wind_out, batt_cfg, dsl_cfg, mode):
     batt_marginal = diesel_marginal = 0
     if mode == "cost_priority":
         usable = batt_cfg["capacity_kwh"] * (batt_cfg["max_soc"] - batt_cfg["min_soc"])
-        batt_marginal = 450 / (batt_cfg["cycle_life_80pct_dod"] * usable * batt_cfg["round_trip_efficiency"])
+        if usable > 0:
+            batt_marginal = 450 / (batt_cfg["cycle_life_80pct_dod"] * usable * batt_cfg["round_trip_efficiency"])
+        else:
+            batt_marginal = float("inf")  # no battery, never use it
         diesel_marginal = (dsl_cfg["fuel_cost_per_liter"] * fuel_rate
                            + dsl_cfg["maintenance_cost_per_kwh"])
 
@@ -514,7 +517,8 @@ def run_simulation(params: dict) -> dict:
     _, dsl_d     = _downsample(hours, dispatch["dout"])
 
     surplus_d = [sup_d[i]-dem_d[i] for i in range(len(days))]
-    soc_pct_d = [bsoc_d[i] / cfg["battery"]["capacity_kwh"] * 100 for i in range(len(days))]
+    batt_cap = cfg["battery"]["capacity_kwh"]
+    soc_pct_d = [bsoc_d[i] / batt_cap * 100 if batt_cap > 0 else 0.0 for i in range(len(days))]
 
     # Smooth weekly for weather
     temp_week = _weekly_smooth(weather["temp"])
