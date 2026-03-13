@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polar Microgrid Simulator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #07090f;
+  --bg2:      #0d1018;
+  --bg3:      #131720;
+  --border:   #1e2533;
+  --border2:  #2a3347;
+  --ice:      #7dd3fc;
+  --ice2:     #38bdf8;
+  --ice-dim:  rgba(125,211,252,0.08);
+  --ice-glow: rgba(125,211,252,0.18);
+  --aurora:   #34d399;
+  --amber:    #fbbf24;
+  --red:      #f87171;
+  --muted:    #4b5a72;
+  --text:     #c8d8ec;
+  --text-dim: #6b7fa0;
+  --solar:    #fcd34d;
+  --wind:     #86efac;
+  --diesel:   #94a3b8;
+  --batt:     #7dd3fc;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 200px; opacity: 0.4;
+}
+
+.aurora-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100;
+  background: linear-gradient(90deg, transparent, var(--ice2), var(--aurora), var(--ice), transparent);
+  animation: aurora-shift 6s ease-in-out infinite alternate;
+}
+@keyframes aurora-shift { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(30deg); } }
+
+/* ── Shell layout ──────────────────────────────────────────────────────── */
+.shell {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+header {
+  grid-column: 1 / -1;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px;
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+.logo-mark {
+  width: 36px; height: 36px; border: 1.5px solid var(--ice2);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.header-text h1 {
+  font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700;
+  letter-spacing: 0.1em; color: var(--ice); text-transform: uppercase;
+}
+.header-text p { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.header-credit { margin-left: auto; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); text-align: right; line-height: 1.6; }
+
+/* ── Sidebar ───────────────────────────────────────────────────────────── */
+.sidebar {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0;
+  scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+}
+
+.sidebar-inner { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+
+.sec-label {
+  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim);
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 11px; color: var(--text-dim); font-weight: 500; letter-spacing: 0.02em; }
+
+select {
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text); padding: 7px 28px 7px 10px; border-radius: 6px;
+  font-family: 'Space Mono', monospace; font-size: 11px;
+  cursor: pointer; outline: none; width: 100%; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234b5a72' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  transition: border-color 0.2s;
+}
+select:hover, select:focus { border-color: var(--ice2); }
+
+.slider-row { display: flex; align-items: center; gap: 10px; }
+.slider-val { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--ice); min-width: 60px; text-align: right; flex-shrink: 0; }
+input[type=range] { flex: 1; height: 4px; accent-color: var(--ice2); cursor: pointer; }
+
+/* ── Number input for advanced params ─────────────────────────────────── */
+.num-input {
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text); padding: 6px 10px; border-radius: 6px;
+  font-family: 'Space Mono', monospace; font-size: 11px;
+  outline: none; width: 100%; transition: border-color 0.2s;
+}
+.num-input:hover, .num-input:focus { border-color: var(--ice2); }
+
+/* ── Advanced accordion ────────────────────────────────────────────────── */
+.adv-group { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.adv-trigger {
+  width: 100%; background: var(--bg3); border: none; cursor: pointer;
+  padding: 9px 12px; display: flex; align-items: center; justify-content: space-between;
+  color: var(--text-dim); font-family: 'Space Mono', monospace;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
+}
+.adv-trigger:hover { background: var(--border); color: var(--text); }
+.adv-trigger .arr {
+  width: 14px; height: 14px; flex-shrink: 0;
+  transition: transform 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.adv-trigger .arr svg { width: 10px; height: 10px; }
+.adv-trigger.open .arr { transform: rotate(180deg); }
+
+.adv-body {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.3s ease;
+  background: var(--bg2);
+}
+.adv-body.open { max-height: 800px; }
+.adv-inner { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+
+.adv-row { display: flex; align-items: center; gap: 8px; }
+.adv-row label { font-size: 11px; color: var(--text-dim); flex: 1; min-width: 0; line-height: 1.3; }
+.adv-row .num-input { width: 90px; flex-shrink: 0; text-align: right; }
+.adv-unit { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 44px; }
+
+.adv-subsection {
+  font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted);
+  letter-spacing: 0.12em; text-transform: uppercase; margin: 4px 0 2px;
+  padding-top: 8px; border-top: 1px solid var(--border);
+}
+.adv-subsection:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+
+/* ── Simulate button ───────────────────────────────────────────────────── */
+.btn-simulate {
+  width: 100%; padding: 12px;
+  background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+  border: none; border-radius: 8px;
+  font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #07090f; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 20px rgba(56,189,248,0.25);
+}
+.btn-simulate:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 28px rgba(56,189,248,0.4); }
+.btn-simulate:disabled { opacity: 0.55; cursor: not-allowed; }
+.spinner {
+  display: inline-block; width: 11px; height: 11px;
+  border: 2px solid rgba(7,9,15,0.3); border-top-color: #07090f;
+  border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.status-msg { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text-dim); text-align: center; min-height: 16px; line-height: 1.5; }
+.status-msg.error { color: var(--red); }
+.status-msg.ok    { color: var(--aurora); }
+
+/* ── Main area ─────────────────────────────────────────────────────────── */
+.main { overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 16px; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+
+/* ── Hero metrics (prominent 3) ────────────────────────────────────────── */
+.hero-metrics {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.hero-kpi {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 16px 18px;
+  position: relative; overflow: hidden;
+}
+.hero-kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.hero-kpi.h-red::before    { background: linear-gradient(90deg, var(--red), transparent); }
+.hero-kpi.h-amber::before  { background: linear-gradient(90deg, var(--amber), transparent); }
+.hero-kpi.h-ice::before    { background: linear-gradient(90deg, var(--ice2), transparent); }
+.hero-kpi::after {
+  content: ''; position: absolute; bottom: -20px; right: -20px;
+  width: 80px; height: 80px; border-radius: 50%;
+  opacity: 0.04;
+}
+.hero-kpi.h-red::after    { background: var(--red); }
+.hero-kpi.h-amber::after  { background: var(--amber); }
+.hero-kpi.h-ice::after    { background: var(--ice2); }
+
+.hero-label { font-size: 10px; color: var(--text-dim); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.hero-val   { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700; line-height: 1; }
+.hero-kpi.h-red .hero-val    { color: var(--red); }
+.hero-kpi.h-amber .hero-val  { color: var(--amber); }
+.hero-kpi.h-ice .hero-val    { color: var(--ice); }
+.hero-sub   { font-size: 11px; color: var(--text-dim); margin-top: 6px; line-height: 1.4; }
+.hero-sub strong { color: var(--text); font-weight: 600; }
+
+/* ── Secondary KPI strip ───────────────────────────────────────────────── */
+.kpi-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.kpi {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 11px 13px;
+}
+.kpi-label { font-size: 9px; color: var(--text-dim); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+.kpi-val   { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; color: var(--text); }
+.kpi-unit  { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 2px; }
+.kpi-val.c-green { color: var(--aurora); }
+.kpi-val.c-ice   { color: var(--ice); }
+.kpi-val.c-amber { color: var(--amber); }
+
+/* ── Summary table (Fig 2 equivalent) ─────────────────────────────────── */
+.summary-block {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.sum-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px;
+}
+.sum-title {
+  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim);
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.sum-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 4px 0; border-bottom: 1px solid rgba(30,37,51,0.6); gap: 8px;
+}
+.sum-row:last-child { border-bottom: none; }
+.sum-row .sl { font-size: 11px; color: var(--text-dim); }
+.sum-row .sv { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text); text-align: right; }
+.sum-row.bold .sl { color: var(--text); font-weight: 600; }
+.sum-row.bold .sv { color: var(--ice); font-weight: 700; }
+.sum-row .sub { font-size: 9px; color: var(--muted); margin-left: 4px; }
+
+.lcoe-banner {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(125,211,252,0.07), rgba(56,189,248,0.03));
+  border: 1px solid rgba(125,211,252,0.25); border-radius: 10px;
+  padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
+}
+.lcoe-left .lcoe-title { font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ice); }
+.lcoe-left .lcoe-sub   { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.lcoe-right { text-align: right; }
+.lcoe-right .big { font-family: 'Space Mono', monospace; font-size: 32px; font-weight: 700; color: var(--amber); }
+.lcoe-right .unit { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--text-dim); }
+.lcoe-right .npv-line { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+/* ── Chart grid ────────────────────────────────────────────────────────── */
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.chart-grid .wide { grid-column: 1 / -1; }
+.chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.chart-title { font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.chart-wrap.tall  { position: relative; height: 200px; }
+.chart-wrap.short { position: relative; height: 150px; }
+.chart-wrap.pie-h { position: relative; height: 180px; }
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 14px; text-align: center; }
+.empty-icon  { width: 56px; height: 56px; border: 1.5px solid var(--border2); border-radius: 14px; display: flex; align-items: center; justify-content: center; opacity: 0.4; }
+.empty-state h2 { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-dim); letter-spacing: 0.06em; }
+.empty-state p  { font-size: 11px; color: var(--muted); max-width: 240px; line-height: 1.6; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .sidebar { max-height: 50vh; }
+  .hero-metrics { grid-template-columns: 1fr; }
+  .kpi-strip { grid-template-columns: repeat(2,1fr); }
+  .summary-block { grid-template-columns: 1fr; }
+  .chart-grid { grid-template-columns: 1fr; }
+  .chart-grid .wide { grid-column: 1; }
+}
+</style>
+</head>
+<body>
+<div class="aurora-bar"></div>
+<div class="shell">
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo-mark">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7dd3fc" stroke-width="1.5">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>Polar Microgrid Simulator</h1>
+    <p>Antarctic research station power system modeling &amp; optimization</p>
+  </div>
+  <div class="header-credit">Matt McMullen<br>University of Michigan</div>
+</header>
+
+<!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+<aside class="sidebar">
+<div class="sidebar-inner">
+
+  <!-- Station -->
+  <div>
+    <div class="sec-label">Station &amp; Year</div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
+      <div class="field">
+        <label>Station</label>
+        <select id="station" onchange="updateStationDefaults()">
+          <option>McMurdo</option><option>Palmer</option><option>SouthPole</option>
+          <option selected>Casey</option><option>Rothera</option><option>Mawson</option>
+          <option>Davis</option><option>Halley</option><option>Neumayer</option><option>Dumont</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Simulation Year</label>
+        <select id="year">
+          <option>2022</option><option selected>2023</option><option>2024</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generation mix sliders -->
+  <div>
+    <div class="sec-label">Generation Mix</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+
+      <div class="field">
+        <label>☀ Solar PV Capacity</label>
+        <div class="slider-row">
+          <input type="range" id="solar_kw" min="0" max="1000" step="10" value="100"
+            oninput="sv('solar_kw_v',this.value+' kW')">
+          <span class="slider-val" id="solar_kw_v">100 kW</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>💨 Wind Capacity</label>
+        <div class="slider-row">
+          <input type="range" id="wind_kw" min="0" max="2000" step="50" value="200"
+            oninput="sv('wind_kw_v',this.value+' kW')">
+          <span class="slider-val" id="wind_kw_v">200 kW</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>⛽ Diesel Capacity</label>
+        <div class="slider-row">
+          <input type="range" id="diesel_kw" min="0" max="2000" step="50" value="600"
+            oninput="sv('diesel_kw_v',this.value+' kW')">
+          <span class="slider-val" id="diesel_kw_v">600 kW</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>🔋 Battery Storage</label>
+        <div class="slider-row">
+          <input type="range" id="battery_kwh" min="0" max="5000" step="100" value="500"
+            oninput="sv('battery_kwh_v',this.value+' kWh')">
+          <span class="slider-val" id="battery_kwh_v">500 kWh</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Dispatch / Tracking -->
+  <div>
+    <div class="sec-label">Control Strategy</div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
+      <div class="field">
+        <label>Solar Tracking</label>
+        <select id="tracking_mode">
+          <option value="fixed">Fixed (no tracking)</option>
+          <option value="single_axis">Single-Axis (+20%)</option>
+          <option value="dual_axis" selected>Dual-Axis (+35%)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Dispatch Strategy</label>
+        <select id="dispatch_mode">
+          <option value="renewable_priority" selected>Renewable Priority</option>
+          <option value="cost_priority">Cost Priority</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Advanced: Solar ─────────────────────────────────────────── -->
+  <div class="adv-group">
+    <button class="adv-trigger" onclick="toggleAdv(this)">
+      Advanced — Solar PV
+      <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </button>
+    <div class="adv-body">
+      <div class="adv-inner">
+        <div class="adv-row"><label>Panel Rated Power</label><input class="num-input" id="a_panel_w" type="number" value="400"><span class="adv-unit">W</span></div>
+        <div class="adv-row"><label>Panel Efficiency (STC)</label><input class="num-input" id="a_eta_stc" type="number" value="0.205" step="0.001"><span class="adv-unit">frac</span></div>
+        <div class="adv-row"><label>Panel Area</label><input class="num-input" id="a_area" type="number" value="1.95" step="0.01"><span class="adv-unit">m²</span></div>
+        <div class="adv-row"><label>NOCT</label><input class="num-input" id="a_noct" type="number" value="45"><span class="adv-unit">°C</span></div>
+        <div class="adv-row"><label>Temp Coeff Pmax</label><input class="num-input" id="a_tcoef" type="number" value="-0.0035" step="0.0001"><span class="adv-unit">/°C</span></div>
+        <div class="adv-row"><label>Albedo Boost</label><input class="num-input" id="a_albedo" type="number" value="1.15" step="0.01"><span class="adv-unit">factor</span></div>
+        <div class="adv-row"><label>CAPEX</label><input class="num-input" id="a_pv_capex" type="number" value="1600"><span class="adv-unit">$/kW</span></div>
+        <div class="adv-row"><label>O&amp;M Cost</label><input class="num-input" id="a_pv_opex" type="number" value="18"><span class="adv-unit">$/kW/yr</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Advanced: Wind ──────────────────────────────────────────── -->
+  <div class="adv-group">
+    <button class="adv-trigger" onclick="toggleAdv(this)">
+      Advanced — Wind Turbines
+      <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </button>
+    <div class="adv-body">
+      <div class="adv-inner">
+        <div class="adv-row"><label>Turbine Rated Power</label><input class="num-input" id="a_turb_kw" type="number" value="100"><span class="adv-unit">kW</span></div>
+        <div class="adv-row"><label>Rotor Diameter</label><input class="num-input" id="a_rotor_d" type="number" value="33.4" step="0.1"><span class="adv-unit">m</span></div>
+        <div class="adv-row"><label>Hub Height</label><input class="num-input" id="a_hub_h" type="number" value="50"><span class="adv-unit">m</span></div>
+        <div class="adv-row"><label>Cut-in Speed</label><input class="num-input" id="a_cutin" type="number" value="3"><span class="adv-unit">m/s</span></div>
+        <div class="adv-row"><label>Rated Speed</label><input class="num-input" id="a_rated_v" type="number" value="13"><span class="adv-unit">m/s</span></div>
+        <div class="adv-row"><label>Cut-out Speed</label><input class="num-input" id="a_cutout" type="number" value="31"><span class="adv-unit">m/s</span></div>
+        <div class="adv-row"><label>Max Cp</label><input class="num-input" id="a_cp" type="number" value="0.40" step="0.01"><span class="adv-unit">—</span></div>
+        <div class="adv-row"><label>Wind Shear Exp.</label><input class="num-input" id="a_shear" type="number" value="0.12" step="0.01"><span class="adv-unit">—</span></div>
+        <div class="adv-row"><label>CAPEX</label><input class="num-input" id="a_wind_capex" type="number" value="3000"><span class="adv-unit">$/kW</span></div>
+        <div class="adv-row"><label>O&amp;M Cost</label><input class="num-input" id="a_wind_opex" type="number" value="50"><span class="adv-unit">$/kW/yr</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Advanced: Battery ───────────────────────────────────────── -->
+  <div class="adv-group">
+    <button class="adv-trigger" onclick="toggleAdv(this)">
+      Advanced — Battery Storage
+      <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </button>
+    <div class="adv-body">
+      <div class="adv-inner">
+        <div class="adv-row"><label>Round-trip Efficiency</label><input class="num-input" id="a_rt_eff" type="number" value="0.90" step="0.01"><span class="adv-unit">frac</span></div>
+        <div class="adv-row"><label>Max Charge Rate</label><input class="num-input" id="a_chg_c" type="number" value="0.5" step="0.1"><span class="adv-unit">C</span></div>
+        <div class="adv-row"><label>Max Discharge Rate</label><input class="num-input" id="a_dis_c" type="number" value="1.0" step="0.1"><span class="adv-unit">C</span></div>
+        <div class="adv-row"><label>Min SOC</label><input class="num-input" id="a_soc_min" type="number" value="0.10" step="0.01"><span class="adv-unit">frac</span></div>
+        <div class="adv-row"><label>Max SOC</label><input class="num-input" id="a_soc_max" type="number" value="0.95" step="0.01"><span class="adv-unit">frac</span></div>
+        <div class="adv-row"><label>Cold Derate Factor</label><input class="num-input" id="a_cold_df" type="number" value="0.85" step="0.01"><span class="adv-unit">frac</span></div>
+        <div class="adv-row"><label>Cold Threshold</label><input class="num-input" id="a_cold_thr" type="number" value="-20"><span class="adv-unit">°C</span></div>
+        <div class="adv-row"><label>Cycle Life (80% DoD)</label><input class="num-input" id="a_cycles" type="number" value="5000"><span class="adv-unit">cycles</span></div>
+        <div class="adv-row"><label>CAPEX</label><input class="num-input" id="a_batt_capex" type="number" value="388"><span class="adv-unit">$/kWh</span></div>
+        <div class="adv-row"><label>O&amp;M Cost</label><input class="num-input" id="a_batt_opex" type="number" value="7.5"><span class="adv-unit">$/kWh/yr</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Advanced: Diesel ────────────────────────────────────────── -->
+  <div class="adv-group">
+    <button class="adv-trigger" onclick="toggleAdv(this)">
+      Advanced — Diesel Generator
+      <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </button>
+    <div class="adv-body">
+      <div class="adv-inner">
+        <div class="adv-row"><label>Min Load Fraction</label><input class="num-input" id="a_dsl_min" type="number" value="0.25" step="0.01"><span class="adv-unit">frac</span></div>
+        <div class="adv-row"><label>Fuel Consumption</label><input class="num-input" id="a_dsl_fuel" type="number" value="0.27" step="0.01"><span class="adv-unit">L/kWh</span></div>
+        <div class="adv-row"><label>Fuel Cost</label><input class="num-input" id="a_dsl_cost" type="number" value="2.50" step="0.10"><span class="adv-unit">$/L</span></div>
+        <div class="adv-row"><label>Var. Maint. Cost</label><input class="num-input" id="a_dsl_maint" type="number" value="0.03" step="0.01"><span class="adv-unit">$/kWh</span></div>
+        <div class="adv-row"><label>CAPEX</label><input class="num-input" id="a_dsl_capex" type="number" value="400"><span class="adv-unit">$/kW</span></div>
+        <div class="adv-row"><label>Fixed O&amp;M</label><input class="num-input" id="a_dsl_opex" type="number" value="20"><span class="adv-unit">$/kW/yr</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Advanced: Station Demand ───────────────────────────────── -->
+  <div class="adv-group">
+    <button class="adv-trigger" onclick="toggleAdv(this)">
+      Advanced — Station &amp; Demand
+      <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </button>
+    <div class="adv-body">
+      <div class="adv-inner">
+        <div class="adv-row"><label>Summer Personnel</label><input class="num-input" id="a_summer" type="number" value="120"><span class="adv-unit">people</span></div>
+        <div class="adv-row"><label>Winter Personnel</label><input class="num-input" id="a_winter" type="number" value="20"><span class="adv-unit">people</span></div>
+        <div class="adv-row"><label>Base Load / Person</label><input class="num-input" id="a_base_pp" type="number" value="1.25" step="0.05"><span class="adv-unit">kW/pers</span></div>
+        <div class="adv-row"><label>Peak Factor</label><input class="num-input" id="a_peak_f" type="number" value="1.4" step="0.1"><span class="adv-unit">ratio</span></div>
+        <div class="adv-row"><label>Heating Fraction</label><input class="num-input" id="a_heat_f" type="number" value="0.55" step="0.05"><span class="adv-unit">frac</span></div>
+        <div class="adv-row"><label>Infrastructure Base</label><input class="num-input" id="a_infra" type="number" value="50"><span class="adv-unit">kW</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Advanced: Project Economics ───────────────────────────── -->
+  <div class="adv-group">
+    <button class="adv-trigger" onclick="toggleAdv(this)">
+      Advanced — Project Economics
+      <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </button>
+    <div class="adv-body">
+      <div class="adv-inner">
+        <div class="adv-row"><label>Discount Rate</label><input class="num-input" id="a_discount" type="number" value="0.05" step="0.01"><span class="adv-unit">frac</span></div>
+        <div class="adv-row"><label>Project Lifetime</label><input class="num-input" id="a_life" type="number" value="25"><span class="adv-unit">years</span></div>
+        <div class="adv-row"><label>Diesel Lifetime</label><input class="num-input" id="a_dsl_life" type="number" value="15"><span class="adv-unit">years</span></div>
+        <div class="adv-row"><label>Battery Lifetime</label><input class="num-input" id="a_batt_life" type="number" value="15"><span class="adv-unit">years</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simulate -->
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button class="btn-simulate" id="btn-sim" onclick="runSim()">▶ Run Simulation</button>
+    <div class="status-msg" id="status"></div>
+  </div>
+
+  <div style="margin-top:auto;padding-top:10px;border-top:1px solid var(--border)">
+    <p style="font-size:10px;color:var(--muted);line-height:1.7">Weather via NASA POWER API. Physics models: PV cell temp, Hellmann wind shear, power curve, battery C-rates, dispatch loop. Costs: NREL ATB 2023.</p>
+  </div>
+
+</div>
+</aside>
+
+<!-- ── Main results area ───────────────────────────────────────────────── -->
+<main class="main" id="main">
+
+  <div class="empty-state" id="empty">
+    <div class="empty-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4b5a72" stroke-width="1.5">
+        <circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+      </svg>
+    </div>
+    <h2>No Simulation Yet</h2>
+    <p>Configure the generation mix and parameters on the left, then click Run Simulation.</p>
+  </div>
+
+  <div id="results" style="display:none;"></div>
+
+</main>
+</div>
+
+<script>
+Chart.defaults.color = '#6b7fa0';
+Chart.defaults.borderColor = '#1e2533';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 11;
+
+const STATION_DEFAULTS = {
+  McMurdo:   {summer:1000,winter:250}, Palmer:    {summer:46,  winter:20},
+  SouthPole: {summer:200, winter:50},  Casey:     {summer:120, winter:20},
+  Rothera:   {summer:100, winter:22},  Mawson:    {summer:60,  winter:20},
+  Davis:     {summer:120, winter:22},  Halley:    {summer:70,  winter:16},
+  Neumayer:  {summer:50,  winter:10},  Dumont:    {summer:80,  winter:25},
+};
+
+function sv(id, val) { document.getElementById(id).textContent = val; }
+
+function updateStationDefaults() {
+  const s = document.getElementById('station').value;
+  const d = STATION_DEFAULTS[s];
+  if (d) {
+    document.getElementById('a_summer').value = d.summer;
+    document.getElementById('a_winter').value = d.winter;
+  }
+}
+
+function toggleAdv(btn) {
+  btn.classList.toggle('open');
+  btn.nextElementSibling.classList.toggle('open');
+}
+
+function fmt(n, dec=0) {
+  if (n == null) return '—';
+  return n.toLocaleString('en-US', {minimumFractionDigits:dec, maximumFractionDigits:dec});
+}
+function fmtD(n, dec=0) { return '$' + fmt(n, dec); }
+
+const charts = {};
+function dc(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function gv(id) { return parseFloat(document.getElementById(id).value); }
+function gs(id) { return document.getElementById(id).value; }
+
+async function runSim() {
+  const btn = document.getElementById('btn-sim');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Fetching weather &amp; running…';
+  status.className = 'status-msg';
+  status.textContent = 'Pulling NASA POWER data — ~15–30 seconds…';
+
+  const params = {
+    station:       gs('station'),
+    year:          parseInt(gs('year')),
+    solar_kw:      gv('solar_kw'),
+    wind_kw:       gv('wind_kw'),
+    diesel_kw:     gv('diesel_kw'),
+    battery_kwh:   gv('battery_kwh'),
+    tracking_mode: gs('tracking_mode'),
+    dispatch_mode: gs('dispatch_mode'),
+    // advanced
+    panel_rated_power_w:      gv('a_panel_w'),
+    panel_efficiency_stc:     gv('a_eta_stc'),
+    panel_area_m2:            gv('a_area'),
+    noct_c:                   gv('a_noct'),
+    temp_coefficient_pmax:    gv('a_tcoef'),
+    albedo_boost_factor:      gv('a_albedo'),
+    turbine_rated_power_kw:   gv('a_turb_kw'),
+    rotor_diameter_m:         gv('a_rotor_d'),
+    hub_height_m:             gv('a_hub_h'),
+    cut_in_speed_ms:          gv('a_cutin'),
+    rated_speed_ms:           gv('a_rated_v'),
+    cut_out_speed_ms:         gv('a_cutout'),
+    cp_max:                   gv('a_cp'),
+    wind_shear_exponent:      gv('a_shear'),
+    round_trip_efficiency:    gv('a_rt_eff'),
+    max_charge_rate_c:        gv('a_chg_c'),
+    max_discharge_rate_c:     gv('a_dis_c'),
+    min_soc:                  gv('a_soc_min'),
+    max_soc:                  gv('a_soc_max'),
+    cold_derating_factor:     gv('a_cold_df'),
+    cold_threshold_c:         gv('a_cold_thr'),
+    cycle_life_80pct_dod:     gv('a_cycles'),
+    diesel_min_load_fraction: gv('a_dsl_min'),
+    fuel_consumption_l_kwh:   gv('a_dsl_fuel'),
+    fuel_cost_per_liter:      gv('a_dsl_cost'),
+    maintenance_cost_per_kwh: gv('a_dsl_maint'),
+    personnel_summer:         gv('a_summer'),
+    personnel_winter:         gv('a_winter'),
+    base_load_kw_per_person:  gv('a_base_pp'),
+    peak_factor:              gv('a_peak_f'),
+    heating_fraction:         gv('a_heat_f'),
+    infrastructure_base_kw:   gv('a_infra'),
+    // costs
+    pv_capex_per_kw:          gv('a_pv_capex'),
+    pv_opex_per_kw_year:      gv('a_pv_opex'),
+    wind_capex_per_kw:        gv('a_wind_capex'),
+    wind_opex_per_kw_year:    gv('a_wind_opex'),
+    battery_capex_per_kwh:    gv('a_batt_capex'),
+    battery_opex_per_kwh_year:gv('a_batt_opex'),
+    diesel_capex_per_kw:      gv('a_dsl_capex'),
+    diesel_opex_per_kw_year:  gv('a_dsl_opex'),
+    discount_rate:            gv('a_discount'),
+    project_lifetime_years:   gv('a_life'),
+    diesel_lifetime_years:    gv('a_dsl_life'),
+    battery_lifetime_years:   gv('a_batt_life'),
+  };
+
+  try {
+    const res = await fetch('/simulate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error'); }
+    const data = await res.json();
+    const src = data.weather_source === 'nasa' ? 'NASA POWER' : 'synthetic weather';
+    status.className = 'status-msg ok';
+    status.textContent = `✓ Complete — ${src}, ${data.year}`;
+    renderResults(data);
+  } catch(e) {
+    status.className = 'status-msg error';
+    status.textContent = '✗ ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Simulation';
+  }
+}
+
+function renderResults(d) {
+  document.getElementById('empty').style.display = 'none';
+  const el = document.getElementById('results');
+  el.style.display = 'block';
+  el.innerHTML = '';
+
+  const k = d.kpis;
+  const c = d.charts;
+  const costs = d.costs;
+  const npv = fmt(costs.lifetime_cost);
+  const unmetPct = k.annual_demand_mwh > 0 ? (k.unmet_demand_mwh / k.annual_demand_mwh * 100) : 0;
+  const unmetColor = k.unmet_demand_mwh > 0.5 ? 'h-red' : 'h-ice';
+
+  // ── Hero 3 metrics ───────────────────────────────────────────────────
+  el.innerHTML += `
+  <div class="hero-metrics">
+    <div class="hero-kpi ${unmetColor}">
+      <div class="hero-label">⚠ Unmet Demand</div>
+      <div class="hero-val">${fmt(k.unmet_demand_mwh, 2)}<span style="font-size:14px;font-weight:400;color:var(--text-dim)"> MWh</span></div>
+      <div class="hero-sub">${fmt(unmetPct,3)}% of annual load unserved<br>
+        <strong>${k.unmet_demand_mwh <= 0.1 ? '✓ Fully reliable supply' : '⚠ Reliability gap — increase diesel or storage'}</strong>
+      </div>
+    </div>
+    <div class="hero-kpi h-amber">
+      <div class="hero-label">$ Net Present Value of Project</div>
+      <div class="hero-val" style="font-size:22px">$${npv}</div>
+      <div class="hero-sub">Total lifetime cost (${costs.project_lifetime} yr, ${fmt(costs.discount_rate_pct,0)}% discount)<br>
+        <strong>CAPEX $${fmt(costs.total_capex)} + OPEX $${fmt(costs.total_opex)}/yr</strong>
+      </div>
+    </div>
+    <div class="hero-kpi h-amber">
+      <div class="hero-label">⚡ LCOE — Levelised Cost of Energy</div>
+      <div class="hero-val">$${fmt(costs.lcoe, 4)}<span style="font-size:14px;font-weight:400;color:var(--text-dim)"> /kWh</span></div>
+      <div class="hero-sub">Lifetime cost ÷ lifetime generation<br>
+        <strong>${fmt(costs.total_annual_kwh / 1000, 0)} MWh/yr average generation</strong>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Secondary KPIs ───────────────────────────────────────────────────
+  el.innerHTML += `
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="kpi-label">RE Fraction</div>
+      <div class="kpi-val c-green">${fmt(k.re_fraction_pct,1)}%</div>
+      <div class="kpi-unit">${fmt(k.diesel_fraction_pct,1)}% diesel</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Annual Demand</div>
+      <div class="kpi-val c-ice">${fmt(k.annual_demand_mwh)}</div>
+      <div class="kpi-unit">MWh/yr</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Fuel Consumed</div>
+      <div class="kpi-val c-amber">${fmt(k.fuel_consumed_l)}</div>
+      <div class="kpi-unit">litres/yr</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Solar Gen</div>
+      <div class="kpi-val">${fmt(k.pv_generation_mwh)}</div>
+      <div class="kpi-unit">MWh — ${k.num_panels} panels</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Wind Gen</div>
+      <div class="kpi-val">${fmt(k.wind_generation_mwh)}</div>
+      <div class="kpi-unit">MWh — ${k.num_turbines} turbines</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Curtailed</div>
+      <div class="kpi-val">${fmt(k.curtailed_mwh, 1)}</div>
+      <div class="kpi-unit">MWh/yr surplus</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Peak Demand</div>
+      <div class="kpi-val">${fmt(k.peak_demand_kw)}</div>
+      <div class="kpi-unit">kW peak</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Demand</div>
+      <div class="kpi-val">${fmt(k.avg_demand_kw)}</div>
+      <div class="kpi-unit">kW average</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Diesel Gen</div>
+      <div class="kpi-val">${fmt(k.diesel_generation_mwh)}</div>
+      <div class="kpi-unit">MWh/yr</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Annual OPEX</div>
+      <div class="kpi-val c-amber">${fmtD(costs.total_opex)}</div>
+      <div class="kpi-unit">/yr operating</div>
+    </div>
+  </div>`;
+
+  // ── Summary table (Fig 2) ─────────────────────────────────────────────
+  el.innerHTML += `
+  <div class="summary-block">
+    <div class="sum-card">
+      <div class="sum-title">Generation &amp; Performance — ${d.station} ${d.year}</div>
+      <div class="sum-row"><span class="sl">Annual Demand</span><span class="sv">${fmt(k.annual_demand_mwh)} MWh</span></div>
+      <div class="sum-row"><span class="sl">PV Generation</span><span class="sv">${fmt(k.pv_generation_mwh)} MWh <span class="sub">${k.num_panels} × ${gv('a_panel_w')}W panels</span></span></div>
+      <div class="sum-row"><span class="sl">Wind Generation</span><span class="sv">${fmt(k.wind_generation_mwh)} MWh <span class="sub">${k.num_turbines} × ${gv('a_turb_kw')} kW turbines</span></span></div>
+      <div class="sum-row"><span class="sl">Diesel Generation</span><span class="sv">${fmt(k.diesel_generation_mwh)} MWh <span class="sub">${gv('diesel_kw')} kW cap.</span></span></div>
+      <div class="sum-row"><span class="sl">Battery Storage</span><span class="sv">${gv('battery_kwh')} kWh</span></div>
+      <div class="sum-row" style="margin-top:4px"><span class="sl">Renewable Fraction</span><span class="sv" style="color:var(--aurora)">${fmt(k.re_fraction_pct,1)}%</span></div>
+      <div class="sum-row"><span class="sl">Diesel Fraction</span><span class="sv">${fmt(k.diesel_fraction_pct,1)}%</span></div>
+      <div class="sum-row"><span class="sl">Fuel Consumed</span><span class="sv">${fmt(k.fuel_consumed_l)} L</span></div>
+      <div class="sum-row"><span class="sl">Curtailed RE</span><span class="sv">${fmt(k.curtailed_mwh,1)} MWh</span></div>
+      <div class="sum-row bold"><span class="sl">Unmet Demand</span><span class="sv" style="color:${k.unmet_demand_mwh>0.5?'var(--red)':'var(--aurora)'}">${fmt(k.unmet_demand_mwh,2)} MWh (${fmt(unmetPct,3)}%)</span></div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-title">Cost Analysis</div>
+      <div class="sum-row" style="margin-bottom:2px"><span class="sl" style="font-weight:600;color:var(--text)">CAPEX (Initial)</span><span class="sv"></span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Solar PV</span><span class="sv">${fmtD(costs.pv_capex)}</span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Wind</span><span class="sv">${fmtD(costs.wind_capex)}</span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Diesel</span><span class="sv">${fmtD(costs.diesel_capex)}</span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Battery</span><span class="sv">${fmtD(costs.battery_capex)}</span></div>
+      <div class="sum-row bold"><span class="sl">Total CAPEX</span><span class="sv">${fmtD(costs.total_capex)}</span></div>
+      <div class="sum-row" style="margin-top:6px;margin-bottom:2px"><span class="sl" style="font-weight:600;color:var(--text)">Annual OPEX</span><span class="sv"></span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Solar O&amp;M</span><span class="sv">${fmtD(costs.pv_opex)}/yr</span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Wind O&amp;M</span><span class="sv">${fmtD(costs.wind_opex)}/yr</span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Diesel O&amp;M</span><span class="sv">${fmtD(costs.diesel_opex)}/yr</span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Diesel Fuel</span><span class="sv">${fmtD(costs.fuel_cost)}/yr</span></div>
+      <div class="sum-row"><span class="sl">&nbsp;&nbsp;Battery O&amp;M</span><span class="sv">${fmtD(costs.battery_opex)}/yr</span></div>
+      <div class="sum-row bold"><span class="sl">Total OPEX</span><span class="sv">${fmtD(costs.total_opex)}/yr</span></div>
+    </div>
+    <div class="lcoe-banner">
+      <div class="lcoe-left">
+        <div class="lcoe-title">Levelised Cost of Energy</div>
+        <div class="lcoe-sub">${costs.project_lifetime}-year project lifetime · ${fmt(costs.discount_rate_pct,0)}% real discount rate · NPV of replacements included</div>
+        <div class="lcoe-sub" style="margin-top:6px">Total Lifetime Cost: <strong style="color:var(--text)">${fmtD(costs.lifetime_cost)}</strong></div>
+      </div>
+      <div class="lcoe-right">
+        <div class="big">$${fmt(costs.lcoe,4)}</div>
+        <div class="unit">/kWh</div>
+        <div class="npv-line">NPV: ${fmtD(costs.lifetime_cost)}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Chart grid ────────────────────────────────────────────────────────
+  el.innerHTML += `
+  <div class="chart-grid" id="cgrid">
+    <div class="chart-card wide">
+      <div class="chart-title"><span class="dot" style="background:var(--red)"></span>Supply vs Demand — Daily Averages</div>
+      <div class="chart-wrap tall"><canvas id="ch-sd"></canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title"><span class="dot" style="background:var(--solar)"></span>Generation Mix vs Demand — Stacked</div>
+      <div class="chart-wrap tall"><canvas id="ch-mix"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot" style="background:var(--batt)"></span>Battery State of Charge</div>
+      <div class="chart-wrap short"><canvas id="ch-soc"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot" style="background:var(--ice2)"></span>Monthly Energy Balance (MWh)</div>
+      <div class="chart-wrap short"><canvas id="ch-mon"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot" style="background:var(--aurora)"></span>Daily Temperature (°C)</div>
+      <div class="chart-wrap short"><canvas id="ch-temp"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="dot" style="background:var(--wind)"></span>Daily Wind Speed (m/s)</div>
+      <div class="chart-wrap short"><canvas id="ch-ws"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">CAPEX Breakdown</div>
+      <div class="chart-wrap pie-h"><canvas id="ch-capex"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Annual OPEX Breakdown</div>
+      <div class="chart-wrap pie-h"><canvas id="ch-opex"></canvas></div>
+    </div>
+  </div>`;
+
+  setTimeout(() => buildCharts(c, costs), 60);
+}
+
+function buildCharts(c, costs) {
+  const days = c.days;
+  const base = {
+    responsive:true, maintainAspectRatio:false, animation:{duration:400},
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:true, labels:{color:'#6b7fa0', boxWidth:9, pointStyle:false, font:{size:10}}},
+      tooltip:{backgroundColor:'rgba(13,16,24,0.96)', borderColor:'#1e2533', borderWidth:1, titleColor:'#c8d8ec', bodyColor:'#6b7fa0', padding:10, titleFont:{family:"'Space Mono',monospace",size:10}},
+    },
+    scales:{
+      x:{border:{color:'#1e2533'}, grid:{color:'rgba(30,37,51,0.7)'}, ticks:{color:'#4b5a72',maxTicksLimit:8,font:{size:9}}, title:{display:true,text:'Day of year',color:'#4b5a72',font:{size:9}}},
+      y:{border:{color:'#1e2533'}, grid:{color:'rgba(30,37,51,0.7)'}, ticks:{color:'#4b5a72',font:{size:9}}, title:{display:true,color:'#4b5a72',font:{size:9}}},
+    }
+  };
+  function yLabel(lbl) { return {scales:{...base.scales, y:{...base.scales.y, title:{...base.scales.y.title,text:lbl}}}}; }
+  function merge(a,b) { return JSON.parse(JSON.stringify({...a,...b, scales:{...a.scales,...(b.scales||{})}, plugins:{...a.plugins,...(b.plugins||{})}})); }
+
+  // Supply vs demand
+  dc('sd');
+  charts['sd'] = new Chart(document.getElementById('ch-sd'), {
+    type:'line',
+    data:{labels:days, datasets:[
+      {label:'Demand', data:c.demand_daily, borderColor:'#f87171', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false},
+      {label:'Supply', data:c.supply_daily, borderColor:'#7dd3fc', borderWidth:1.5, pointRadius:0, tension:0.3, fill:{target:0, above:'rgba(52,211,153,0.1)', below:'rgba(248,113,113,0.12)'}},
+    ]},
+    options: merge(base, yLabel('kW'))
+  });
+
+  // Gen mix stacked
+  dc('mix');
+  charts['mix'] = new Chart(document.getElementById('ch-mix'), {
+    type:'line',
+    data:{labels:days, datasets:[
+      {label:'Diesel',  data:c.diesel_daily, borderColor:'#94a3b8', backgroundColor:'rgba(148,163,184,0.55)', borderWidth:0.5, pointRadius:0, fill:true, tension:0.3},
+      {label:'Battery', data:c.bdis_daily,   borderColor:'#7dd3fc', backgroundColor:'rgba(125,211,252,0.55)', borderWidth:0.5, pointRadius:0, fill:true, tension:0.3},
+      {label:'Wind',    data:c.w2l_daily,    borderColor:'#86efac', backgroundColor:'rgba(134,239,172,0.65)', borderWidth:0.5, pointRadius:0, fill:true, tension:0.3},
+      {label:'Solar',   data:c.pv2l_daily,   borderColor:'#fcd34d', backgroundColor:'rgba(252,211,77,0.65)',  borderWidth:0.5, pointRadius:0, fill:true, tension:0.3},
+      {label:'Demand',  data:c.demand_daily, borderColor:'#f87171', backgroundColor:'transparent',           borderWidth:2,   pointRadius:0, fill:false, tension:0.3},
+    ]},
+    options: merge(base, yLabel('kW'))
+  });
+
+  // Battery SOC
+  dc('soc');
+  charts['soc'] = new Chart(document.getElementById('ch-soc'), {
+    type:'line',
+    data:{labels:days, datasets:[
+      {label:'SOC %', data:c.soc_pct_daily, borderColor:'#7dd3fc', backgroundColor:'rgba(125,211,252,0.12)', borderWidth:1.5, pointRadius:0, fill:true, tension:0.3},
+    ]},
+    options: merge(base, {scales:{x:base.scales.x, y:{...base.scales.y, min:0, max:100, title:{display:true,text:'%',color:'#4b5a72',font:{size:9}}}}})
+  });
+
+  // Monthly
+  dc('mon');
+  charts['mon'] = new Chart(document.getElementById('ch-mon'), {
+    type:'bar',
+    data:{labels:c.months, datasets:[
+      {label:'Demand',  data:c.demand_monthly,  backgroundColor:'rgba(248,113,113,0.75)'},
+      {label:'RE Gen',  data:c.re_monthly,      backgroundColor:'rgba(52,211,153,0.75)'},
+      {label:'Diesel',  data:c.diesel_monthly,  backgroundColor:'rgba(148,163,184,0.55)'},
+    ]},
+    options: merge(base, {scales:{x:{...base.scales.x, title:{...base.scales.x.title,text:'Month'}}, y:{...base.scales.y, title:{display:true,text:'MWh',color:'#4b5a72',font:{size:9}}}}})
+  });
+
+  // Temperature
+  dc('temp');
+  charts['temp'] = new Chart(document.getElementById('ch-temp'), {
+    type:'line',
+    data:{labels:days, datasets:[{label:'°C', data:c.temp_daily, borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.08)', borderWidth:1.5, pointRadius:0, fill:true, tension:0.4}]},
+    options: merge(base, yLabel('°C'))
+  });
+
+  // Wind speed
+  dc('ws');
+  charts['ws'] = new Chart(document.getElementById('ch-ws'), {
+    type:'line',
+    data:{labels:days, datasets:[{label:'m/s', data:c.wind_spd_daily, borderColor:'#86efac', backgroundColor:'rgba(134,239,172,0.08)', borderWidth:1.5, pointRadius:0, fill:true, tension:0.3}]},
+    options: merge(base, yLabel('m/s'))
+  });
+
+  // CAPEX pie
+  dc('capex');
+  charts['capex'] = new Chart(document.getElementById('ch-capex'), {
+    type:'doughnut',
+    data:{labels:['Solar PV','Wind','Diesel','Battery'], datasets:[{
+      data:[costs.pv_capex, costs.wind_capex, costs.diesel_capex, costs.battery_capex],
+      backgroundColor:['rgba(252,211,77,0.85)','rgba(134,239,172,0.85)','rgba(148,163,184,0.85)','rgba(125,211,252,0.85)'],
+      borderColor:'#07090f', borderWidth:2
+    }]},
+    options:{cutout:'65%', plugins:{legend:{position:'bottom', labels:{color:'#6b7fa0',boxWidth:10,font:{size:10}}}}}
+  });
+
+  // OPEX pie
+  dc('opex');
+  charts['opex'] = new Chart(document.getElementById('ch-opex'), {
+    type:'doughnut',
+    data:{labels:['Solar O&M','Wind O&M','Diesel O&M','Fuel','Battery'], datasets:[{
+      data:[costs.pv_opex, costs.wind_opex, costs.diesel_opex, costs.fuel_cost, costs.battery_opex],
+      backgroundColor:['rgba(252,211,77,0.85)','rgba(134,239,172,0.85)','rgba(148,163,184,0.85)','rgba(251,191,36,0.85)','rgba(125,211,252,0.85)'],
+      borderColor:'#07090f', borderWidth:2
+    }]},
+    options:{cutout:'65%', plugins:{legend:{position:'bottom', labels:{color:'#6b7fa0',boxWidth:10,font:{size:10}}}}}
+  });
+}
+</script>
+</body>
+</html>
